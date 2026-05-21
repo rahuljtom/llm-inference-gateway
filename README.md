@@ -1,6 +1,6 @@
 # LLM Inference Gateway
 
-A production-shaped, OpenAI-compatible HTTP gateway built in Python. Designed to proxy requests to OpenAI, Anthropic, and Groq with unified routing, caching, rate limiting, and observability. 
+OpenAI-compatible LLM gateway with multi-provider routing, streaming normalization, Redis-backed rate limiting, fallback handling, caching, and usage analytics.
 
 Built with **FastAPI**, **Redis**, and **PostgreSQL**.
 
@@ -8,76 +8,84 @@ Built with **FastAPI**, **Redis**, and **PostgreSQL**.
 
 ## What This Is
 
-This project is a high-performance LLM proxy gateway. Instead of applications talking directly to OpenAI or Anthropic, they point to this gateway. It normalizes all requests and responses to the OpenAI schema, allowing seamless swapping of models (e.g., from `gpt-4o` to `claude-3-5-sonnet`) without changing client code.
+This project is a lightweight inference gateway that normalizes multiple LLM provider APIs into the OpenAI chat completion schema. Clients can switch between OpenAI, Anthropic, and Groq models without changing application code.
 
-**Key Features :**
-- **Unified API:** Drop-in replacement for the OpenAI base URL.
-- **Provider Routing:** Automatically routes to OpenAI, Anthropic, or Groq based on the model prefix.
-- **Normalized Streaming:** Native SSE (Server-Sent Events) streaming translation with zero perceived latency.
-- **Token Bucket Rate Limiting:** Redis-backed, per-API-key RPM/TPM limits.
-- **Semantic/Exact Caching:** Redis caching to reduce provider costs.
-- **Observability:** Postgres request logging (latency, token counts, cost).
+### Features
+
+- OpenAI-compatible `/v1/chat/completions` API
+- Provider routing based on model prefixes
+- Streaming response normalization across providers
+- Redis-backed token bucket rate limiting
+- Exact-match response caching
+- Provider fallback on timeout or upstream failure
+- PostgreSQL request logging and usage tracking
 
 ## Architecture
 
 ```mermaid
 graph TD
-    Client[Client App/SDK] -->|OpenAI SDK / HTTP| Gateway[FastAPI Gateway]
-    
-    Gateway -->|Rate Limit / Cache Check| Redis[(Redis)]
-    Gateway -->|Auth / Usage Logging| Postgres[(PostgreSQL)]
-    
-    Gateway -->|Normalize & Proxy| Router{Provider Router}
-    
-    Router -->|GPT-4o| OpenAI[OpenAI API]
-    Router -->|Claude 3.5| Anthropic[Anthropic API]
-    Router -->|Llama 3| Groq[Groq API]
+    Client[Client App or SDK] -->|OpenAI-Compatible Request| Gateway[FastAPI Gateway]
+
+    Gateway -->|Rate Limit and Cache Check| Redis[(Redis)]
+    Gateway -->|Auth and Usage Logging| Postgres[(PostgreSQL)]
+
+    Gateway -->|Normalize and Proxy| Router{Provider Router}
+
+    Router -->|GPT Models| OpenAI[OpenAI API]
+    Router -->|Claude Models| Anthropic[Anthropic API]
+    Router -->|Llama Models| Groq[Groq API]
 ```
 
 ## Design Decisions
 
-1. **Pydantic v2 as the Source of Truth:** All incoming requests are strictly validated into an OpenAI-compatible Pydantic schema before any routing occurs.
-2. **`httpx` Connection Pooling:** A single, shared async HTTP client is initialized during FastAPI's `lifespan` to prevent socket exhaustion under high concurrency.
-3. **`StreamingResponse` for SSE:** We do not buffer tokens in memory. As chunks arrive from downstream providers, they are immediately yielded to the client to keep Time-to-First-Token (TTFT) as low as possible.
-4. **Abstract Base Provider:** Polymorphic `complete()` and `stream()` methods ensure the core router remains completely decoupled from provider-specific logic.
+1. **Pydantic v2 schemas** are used as the canonical request and response contracts for provider normalization.
+2. A shared async **httpx** client is initialized during FastAPI lifespan startup to reuse TCP connections under concurrency.
+3. Responses are streamed directly using FastAPI `StreamingResponse` to minimize Time-to-First-Token latency.
+4. Provider integrations implement a shared async interface so routing and fallback logic remain provider-agnostic.
 
 ## Quick Start
 
-### 1. Setup Environment
+### 1. Setup
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Run the Gateway
-Provide your API keys as environment variables:
+### 2. Start Infrastructure
+
+```bash
+docker compose up -d
+```
+
+### 3. Run the Gateway
+
 ```bash
 OPENAI_API_KEY="sk-..." uvicorn app.main:app --reload
 ```
 
-### 3. Hero Curl (Streaming)
-The gateway exposes a drop-in `/v1/chat/completions` endpoint:
+## Example Request
+
 ```bash
 curl -X POST http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "gpt-4o-mini",
-    "messages": [{"role": "user", "content": "Explain async in Python in 1 sentence."}],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Explain async in Python in one sentence."
+      }
+    ],
     "stream": true
   }'
 ```
-
-## Benchmarks
-*(In Progress)*
-
-## ☁️ Deployment
-*(In Progress)*
 
 ## Tradeoffs and Limitations
 
 - Caching uses exact-match keys only; semantic similarity search is intentionally out of scope.
 - Streaming is normalized to the OpenAI SSE schema, so some provider-specific metadata is omitted.
-- Fallback prioritizes availability over output consistency across models.
-- Rate limiting is single-region Redis-backed and not designed for multi-region coordination.
-- Pricing uses static model cost tables and may lag behind provider updates.
+- Fallback prioritizes availability over deterministic output equivalence across models.
+- Rate limiting is single-region Redis-backed and not designed for distributed coordination.
+- Pricing uses static model cost tables and may drift from provider pricing updates.
