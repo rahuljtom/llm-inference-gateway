@@ -6,7 +6,7 @@ Built with **FastAPI**, **Redis**, and **PostgreSQL**.
 
 ---
 
-## 🎯 What This Is
+## What This Is
 
 This project is a high-performance LLM proxy gateway. Instead of applications talking directly to OpenAI or Anthropic, they point to this gateway. It normalizes all requests and responses to the OpenAI schema, allowing seamless swapping of models (e.g., from `gpt-4o` to `claude-3-5-sonnet`) without changing client code.
 
@@ -18,7 +18,7 @@ This project is a high-performance LLM proxy gateway. Instead of applications ta
 - **Semantic/Exact Caching:** Redis caching to reduce provider costs.
 - **Observability:** Postgres request logging (latency, token counts, cost).
 
-## 🏗 Architecture
+## Architecture
 
 ```mermaid
 graph TD
@@ -34,14 +34,14 @@ graph TD
     Router -->|Llama 3| Groq[Groq API]
 ```
 
-## 🛠 Design Decisions
+## Design Decisions
 
 1. **Pydantic v2 as the Source of Truth:** All incoming requests are strictly validated into an OpenAI-compatible Pydantic schema before any routing occurs.
 2. **`httpx` Connection Pooling:** A single, shared async HTTP client is initialized during FastAPI's `lifespan` to prevent socket exhaustion under high concurrency.
 3. **`StreamingResponse` for SSE:** We do not buffer tokens in memory. As chunks arrive from downstream providers, they are immediately yielded to the client to keep Time-to-First-Token (TTFT) as low as possible.
 4. **Abstract Base Provider:** Polymorphic `complete()` and `stream()` methods ensure the core router remains completely decoupled from provider-specific logic.
 
-## 🚀 Quick Start (Day 1 Features)
+## Quick Start
 
 ### 1. Setup Environment
 ```bash
@@ -68,11 +68,11 @@ curl -X POST http://localhost:8000/v1/chat/completions \
   }'
 ```
 
-## 📈 Benchmarks
-*(Coming in Day 3)*
+## Benchmarks
+*(In Progress)*
 
 ## ☁️ Deployment
-*(Coming in Day 3)*
+*(In Progress)*
 
 ## 🧠 What I Learned
 *(To be populated at the end of the project)*
