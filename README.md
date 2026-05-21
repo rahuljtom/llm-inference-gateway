@@ -10,7 +10,7 @@ Built with **FastAPI**, **Redis**, and **PostgreSQL**.
 
 This project is a high-performance LLM proxy gateway. Instead of applications talking directly to OpenAI or Anthropic, they point to this gateway. It normalizes all requests and responses to the OpenAI schema, allowing seamless swapping of models (e.g., from `gpt-4o` to `claude-3-5-sonnet`) without changing client code.
 
-**Key Features (WIP - Days 1 to 3):**
+**Key Features :**
 - **Unified API:** Drop-in replacement for the OpenAI base URL.
 - **Provider Routing:** Automatically routes to OpenAI, Anthropic, or Groq based on the model prefix.
 - **Normalized Streaming:** Native SSE (Server-Sent Events) streaming translation with zero perceived latency.
