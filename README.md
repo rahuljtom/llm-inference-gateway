@@ -74,5 +74,10 @@ curl -X POST http://localhost:8000/v1/chat/completions \
 ## ☁️ Deployment
 *(In Progress)*
 
-## 🧠 What I Learned
-*(To be populated at the end of the project)*
+## Tradeoffs and Limitations
+
+- Caching uses exact-match keys only; semantic similarity search is intentionally out of scope.
+- Streaming is normalized to the OpenAI SSE schema, so some provider-specific metadata is omitted.
+- Fallback prioritizes availability over output consistency across models.
+- Rate limiting is single-region Redis-backed and not designed for multi-region coordination.
+- Pricing uses static model cost tables and may lag behind provider updates.
