@@ -2,6 +2,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import httpx
 
+from app.routes import chat
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize shared HTTP client for all downstream provider requests
@@ -17,6 +19,8 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan
 )
+
+app.include_router(chat.router)
 
 @app.get("/health")
 async def health():
