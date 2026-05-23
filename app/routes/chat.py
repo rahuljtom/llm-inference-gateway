@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 from app.models.chat import ChatCompletionRequest
 from app.providers.openai import OpenAIProvider
 from app.providers.anthropic import AnthropicProvider
+from app.providers.groq import GroqProvider
 
 router = APIRouter(prefix="/v1", tags=["chat"])
 
@@ -17,7 +18,8 @@ def get_provider(model: str, request: Request):
         return OpenAIProvider(client=client)
     elif model.startswith("claude-"):
         return AnthropicProvider(client=client)
-    # Groq to be added later
+    elif model.startswith("llama") or model.startswith("mixtral") or model.startswith("gemma"):
+        return GroqProvider(client=client)
     raise HTTPException(status_code=400, detail=f"Unsupported model: {model}")
 
 @router.post("/chat/completions")
