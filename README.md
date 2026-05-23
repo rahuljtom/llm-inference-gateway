@@ -7,11 +7,15 @@ Built with **FastAPI**, **Redis**, and **PostgreSQL**.
 ## Demo
 Walkthrough (4 min): https://www.loom.com/share/8916ae03dfa345b683c4e235d31c3eea
 
-<div>
+<p align="center">
     <a href="https://www.loom.com/share/8916ae03dfa345b683c4e235d31c3eea">
-      <img style="max-width:300px;" src="https://cdn.loom.com/sessions/thumbnails/8916ae03dfa345b683c4e235d31c3eea-9001fe14557282fc-full-play.gif#t=0.1">
+        <img
+            src="https://cdn.loom.com/sessions/thumbnails/8916ae03dfa345b683c4e235d31c3eea-9001fe14557282fc-full-play.gif#t=0.1"
+            alt="LLM Inference Gateway Demo"
+            width="850"
+        />
     </a>
-  </div>
+</p>
 
 
 ## What This Is
