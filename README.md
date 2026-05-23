@@ -4,6 +4,8 @@ OpenAI-compatible LLM gateway with multi-provider routing, streaming normalizati
 
 Built with **FastAPI**, **Redis**, and **PostgreSQL**.
 
+Walkthrough (3 min): 
+
 ---
 
 ## What This Is
