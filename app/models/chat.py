@@ -23,4 +23,4 @@ class ChatCompletionResponse(BaseModel):
     created: int
     model: str
     choices: List[Choice]
-    usage: Optional[Dict[str, int]] = None
+    usage: Optional[Dict[str, Any]] = None

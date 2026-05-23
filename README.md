@@ -4,9 +4,15 @@ OpenAI-compatible LLM gateway with multi-provider routing, streaming normalizati
 
 Built with **FastAPI**, **Redis**, and **PostgreSQL**.
 
-Walkthrough (3 min): 
+## Demo
+Walkthrough (4 min): https://www.loom.com/share/8916ae03dfa345b683c4e235d31c3eea
 
----
+<div>
+    <a href="https://www.loom.com/share/8916ae03dfa345b683c4e235d31c3eea">
+      <img style="max-width:300px;" src="https://cdn.loom.com/sessions/thumbnails/8916ae03dfa345b683c4e235d31c3eea-9001fe14557282fc-full-play.gif#t=0.1">
+    </a>
+  </div>
+
 
 ## What This Is
 
