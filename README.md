@@ -77,9 +77,18 @@ docker compose up -d
 uvicorn app.main:app --reload
 ```
 
-## Example Request (BYOK)
+## BYOK Credentials
 
-Gateway auth uses `Authorization: Bearer demo-key` (seeded on startup). Upstream provider credentials are supplied per request:
+Every `/v1/chat/completions` request needs upstream provider credentials. Use **either**:
+
+| Method | Fields |
+|--------|--------|
+| **Headers** (SDK-friendly) | `X-Provider`, `X-Provider-Api-Key` |
+| **JSON body** | `provider`, `api_key` |
+
+Headers override body when both are set. Gateway auth is always `Authorization: Bearer <gateway-key>` (default: `demo-key`).
+
+### curl (body)
 
 ```bash
 curl -X POST http://localhost:8000/v1/chat/completions \
@@ -89,14 +98,42 @@ curl -X POST http://localhost:8000/v1/chat/completions \
     "provider": "groq",
     "api_key": "gsk_YOUR_GROQ_KEY",
     "model": "llama-3.1-8b-instant",
-    "messages": [
-      {
-        "role": "user",
-        "content": "Explain async in Python in one sentence."
-      }
-    ],
-    "stream": true
+    "messages": [{"role": "user", "content": "Hello"}]
   }'
+```
+
+### curl (headers)
+
+```bash
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Authorization: Bearer demo-key" \
+  -H "X-Provider: groq" \
+  -H "X-Provider-Api-Key: gsk_YOUR_GROQ_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "llama-3.1-8b-instant",
+    "messages": [{"role": "user", "content": "Hello"}]
+  }'
+```
+
+### OpenAI Python SDK (headers)
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://127.0.0.1:8000/v1",
+    api_key="demo-key",
+    default_headers={
+        "X-Provider": "groq",
+        "X-Provider-Api-Key": "gsk_YOUR_GROQ_KEY",
+    },
+)
+
+response = client.chat.completions.create(
+    model="llama-3.1-8b-instant",
+    messages=[{"role": "user", "content": "Hello"}],
+)
 ```
 
 ## Tradeoffs and Limitations

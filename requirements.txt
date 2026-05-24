@@ -7,3 +7,4 @@ redis==5.0.3
 sqlmodel==0.0.16
 sqlalchemy[asyncio]==2.0.28
 asyncpg==0.29.0
+pytest==8.1.1

@@ -1,3 +1,25 @@
+# SDK DEMO (BYOK via headers — OpenAI-compatible body)
+
+python -c "
+from openai import OpenAI
+
+client = OpenAI(
+    base_url='http://127.0.0.1:8000/v1',
+    api_key='demo-key',
+    default_headers={
+        'X-Provider': 'groq',
+        'X-Provider-Api-Key': 'gsk_YOUR_GROQ_KEY',
+    },
+)
+
+r = client.chat.completions.create(
+    model='llama-3.1-8b-instant',
+    messages=[{'role':'user','content':'hi'}],
+)
+
+print(r.choices[0].message.content)
+"
+
 # SDK DEMO (BYOK via extra_body)
 
 python -c "
@@ -20,17 +42,19 @@ r = client.chat.completions.create(
 print(r.choices[0].message.content)
 "
 
-# NON-STREAMING
+# NON-STREAMING (headers)
 
 curl http://127.0.0.1:8000/v1/chat/completions \
   -H "Authorization: Bearer demo-key" \
+  -H "X-Provider: groq" \
+  -H "X-Provider-Api-Key: gsk_YOUR_GROQ_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "provider": "groq",
-    "api_key": "gsk_YOUR_GROQ_KEY",
     "model": "llama-3.1-8b-instant",
     "messages": [{"role": "user", "content": "explain redis in one sentence"}]
   }'
+
+# NON-STREAMING (body)
 
 curl http://127.0.0.1:8000/v1/chat/completions \
   -H "Authorization: Bearer demo-key" \
@@ -42,14 +66,14 @@ curl http://127.0.0.1:8000/v1/chat/completions \
     "messages": [{"role": "user", "content": "explain llm gateways in one sentence"}]
   }'
 
-# STREAMING
+# STREAMING (headers)
 
 curl -N http://127.0.0.1:8000/v1/chat/completions \
   -H "Authorization: Bearer demo-key" \
+  -H "X-Provider: groq" \
+  -H "X-Provider-Api-Key: gsk_YOUR_GROQ_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "provider": "groq",
-    "api_key": "gsk_YOUR_GROQ_KEY",
     "model": "llama-3.1-8b-instant",
     "messages": [{"role": "user", "content": "count to 5"}],
     "stream": true
@@ -59,10 +83,10 @@ curl -N http://127.0.0.1:8000/v1/chat/completions \
 
 curl -i http://127.0.0.1:8000/v1/chat/completions \
   -H "Authorization: Bearer demo-key" \
+  -H "X-Provider: not-a-provider" \
+  -H "X-Provider-Api-Key: gsk_YOUR_GROQ_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "provider": "not-a-provider",
-    "api_key": "gsk_YOUR_GROQ_KEY",
     "model": "llama-3.1-8b-instant",
     "messages": [{"role": "user", "content": "hi"}]
   }'
