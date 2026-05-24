@@ -13,9 +13,9 @@ def resolve_byok_credentials(request: Request, body: ChatCompletionBody) -> tupl
     header_provider = request.headers.get(X_PROVIDER)
     header_api_key = request.headers.get(X_PROVIDER_API_KEY)
 
-    provider = header_provider or body.provider
-    body_api_key = body.api_key.get_secret_value() if body.api_key else None
-    api_key = header_api_key or body_api_key
+    provider = (header_provider or body.provider or "").strip().lower()
+    body_api_key = body.api_key.get_secret_value().strip() if body.api_key else ""
+    api_key = (header_api_key or body_api_key or "").strip()
 
     if not provider or not api_key:
         raise HTTPException(
@@ -26,7 +26,7 @@ def resolve_byok_credentials(request: Request, body: ChatCompletionBody) -> tupl
             ),
         )
 
-    return provider.strip().lower(), api_key.strip()
+    return provider, api_key
 
 
 def build_gateway_request(

@@ -23,16 +23,17 @@ def _resolve_fallback(
     header_provider = request.headers.get("x-fallback-provider")
     header_key = request.headers.get("x-fallback-api-key")
 
-    provider = header_provider or body.fallback_provider
-    api_key = header_key or (
-        body.fallback_api_key.get_secret_value() if body.fallback_api_key else None
+    provider = (header_provider or body.fallback_provider or "").strip().lower()
+    body_fb_key = (
+        body.fallback_api_key.get_secret_value().strip() if body.fallback_api_key else ""
     )
+    api_key = (header_key or body_fb_key or "").strip()
     if not provider or not api_key:
         return None
     return FallbackConfig(
         gateway_request=body.to_fallback_gateway(
-            provider=provider.strip().lower(),
-            api_key=SecretStr(api_key.strip()),
+            provider=provider,
+            api_key=SecretStr(api_key),
         )
     )
 

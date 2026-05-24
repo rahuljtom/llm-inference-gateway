@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -22,7 +22,8 @@ async def admin_dashboard():
 
 @router.get("/admin/api/stats")
 async def admin_stats():
-    since = datetime.now(timezone.utc) - timedelta(hours=24)
+    # RequestLog.created_at is stored as naive UTC (TIMESTAMP WITHOUT TIME ZONE).
+    since = datetime.utcnow() - timedelta(hours=24)
 
     async with AsyncSession(engine) as session:
         total = (

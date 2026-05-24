@@ -18,6 +18,12 @@ def resolve_provider(
     client: httpx.AsyncClient,
     upstream_api_key: str,
 ) -> BaseProvider:
+    key = (upstream_api_key or "").strip()
+    if not key:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing upstream provider API key.",
+        )
     provider_cls = PROVIDERS.get(name.lower())
     if provider_cls is None:
         supported = ", ".join(sorted(PROVIDERS))
@@ -25,4 +31,4 @@ def resolve_provider(
             status_code=400,
             detail=f"Unsupported provider: {name}. Supported: {supported}",
         )
-    return provider_cls(client=client, upstream_api_key=upstream_api_key)
+    return provider_cls(client=client, upstream_api_key=key)
