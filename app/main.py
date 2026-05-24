@@ -5,6 +5,7 @@ import httpx
 from app.db.session import engine, init_db, seed_demo_api_key
 from app.middleware.auth import AuthMiddleware
 from app.middleware.ratelimit import RateLimitMiddleware
+from app.middleware.logging import LoggingMiddleware
 from app.routes import chat
 
 @asynccontextmanager
@@ -27,7 +28,8 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-app.add_middleware(RateLimitMiddleware)  # runs second: checks limits
+app.add_middleware(LoggingMiddleware)     # runs third: logs request to postgres
+app.add_middleware(RateLimitMiddleware)   # runs second: checks limits
 app.add_middleware(AuthMiddleware)        # runs first: populates api_key
 
 app.include_router(chat.router)
