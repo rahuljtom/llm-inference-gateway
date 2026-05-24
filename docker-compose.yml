@@ -9,10 +9,6 @@ services:
       # Infrastructure URLs updated for docker networking
       - DATABASE_URL=postgresql+asyncpg://gateway:gatewaypass@postgres:5432/gateway
       - REDIS_URL=redis://redis:6379/0
-      # Pass through provider keys from the host environment
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - GROQ_API_KEY=${GROQ_API_KEY:-}
     depends_on:
       postgres:
         condition: service_started

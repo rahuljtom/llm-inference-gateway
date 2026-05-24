@@ -2,12 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "LLM Inference Gateway"
-    
-    # Provider API Keys
-    OPENAI_API_KEY: str = ""
-    ANTHROPIC_API_KEY: str = ""
-    GROQ_API_KEY: str = ""
-    
+
     # Infrastructure defaults (can be overridden by .env)
     DATABASE_URL: str = "postgresql+asyncpg://gateway:gatewaypass@localhost:5432/gateway"
     REDIS_URL: str = "redis://localhost:6379/0"

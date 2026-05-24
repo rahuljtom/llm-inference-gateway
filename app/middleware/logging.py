@@ -2,12 +2,11 @@
 Request logging middleware.
 
 Captures provider, model, latency, and token counts for every proxied request
-and writes them asynchronously to Postgres. Runs AFTER auth + rate limit
-middlewares so request.state.api_key is guaranteed to exist.
+and writes them asynchronously to Postgres. Provider/model are set on
+request.state by the chat route (never read from the request body here).
 """
 
 import time
-import json
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -28,36 +27,16 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         if api_key is None:
             return await call_next(request)
 
-        # Peek at the request body to extract model name
-        body_bytes = await request.body()
-        try:
-            body = json.loads(body_bytes)
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            return await call_next(request)
-
-        model = body.get("model", "unknown")
-
-        # Determine provider from model prefix
-        if model.startswith("gpt-"):
-            provider = "openai"
-        elif model.startswith("claude-"):
-            provider = "anthropic"
-        elif model.startswith("llama") or model.startswith("mixtral") or model.startswith("gemma"):
-            provider = "groq"
-        else:
-            provider = "unknown"
-
         start = time.perf_counter()
         response = await call_next(request)
         latency_ms = int((time.perf_counter() - start) * 1000)
 
-        # Extract token counts from non-streaming responses via response headers
-        # For streaming, tokens are unknown at this layer (logged as 0)
+        provider = getattr(request.state, "provider", "unknown")
+        model = getattr(request.state, "model", "unknown")
+
         prompt_tokens = int(response.headers.get("x-prompt-tokens", 0))
         completion_tokens = int(response.headers.get("x-completion-tokens", 0))
 
-        # Fire-and-forget: write log row to Postgres
-        # We don't await this in the response path to avoid adding latency
         try:
             async with AsyncSession(engine) as session:
                 log = RequestLog(
@@ -72,7 +51,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 session.add(log)
                 await session.commit()
         except Exception:
-            # Logging must never crash the gateway
             pass
 
         return response

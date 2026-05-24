@@ -1,36 +1,27 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
-from app.models.chat import ChatCompletionRequest
-from app.providers.openai import OpenAIProvider
-from app.providers.anthropic import AnthropicProvider
-from app.providers.groq import GroqProvider
+from app.models.chat import GatewayChatRequest
+from app.providers.registry import resolve_provider
 
 router = APIRouter(prefix="/v1", tags=["chat"])
 
-def get_provider(model: str, request: Request):
-    """
-    Primitive routing based on model prefix. 
-    V2 will load this from the database or dynamic config.
-    """
-    client = request.app.state.http_client
-    if model.startswith("gpt-"):
-        return OpenAIProvider(client=client)
-    elif model.startswith("claude-"):
-        return AnthropicProvider(client=client)
-    elif model.startswith("llama") or model.startswith("mixtral") or model.startswith("gemma"):
-        return GroqProvider(client=client)
-    raise HTTPException(status_code=400, detail=f"Unsupported model: {model}")
 
 @router.post("/chat/completions")
-async def chat_completions(body: ChatCompletionRequest, request: Request):
-    provider = get_provider(body.model, request)
-    
+async def chat_completions(body: GatewayChatRequest, request: Request):
+    request.state.provider = body.provider
+    request.state.model = body.model
+
+    provider = resolve_provider(
+        body.provider,
+        request.app.state.http_client,
+        body.api_key.get_secret_value(),
+    )
+
     if body.stream:
-        # SSE streams must be returned as StreamingResponse with text/event-stream
         return StreamingResponse(
             provider.stream(body),
-            media_type="text/event-stream"
+            media_type="text/event-stream",
         )
-    
+
     return await provider.complete(body)

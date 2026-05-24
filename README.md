@@ -74,16 +74,21 @@ docker compose up -d
 ### 3. Run the Gateway
 
 ```bash
-OPENAI_API_KEY="sk-..." uvicorn app.main:app --reload
+uvicorn app.main:app --reload
 ```
 
-## Example Request
+## Example Request (BYOK)
+
+Gateway auth uses `Authorization: Bearer demo-key` (seeded on startup). Upstream provider credentials are supplied per request:
 
 ```bash
 curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Authorization: Bearer demo-key" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "gpt-4o-mini",
+    "provider": "groq",
+    "api_key": "gsk_YOUR_GROQ_KEY",
+    "model": "llama-3.1-8b-instant",
     "messages": [
       {
         "role": "user",
