@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     
     # Infrastructure defaults (can be overridden by .env)
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/gateway"
+    DATABASE_URL: str = "postgresql+asyncpg://gateway:gatewaypass@localhost:5432/gateway"
     REDIS_URL: str = "redis://localhost:6379/0"
     
     model_config = SettingsConfigDict(

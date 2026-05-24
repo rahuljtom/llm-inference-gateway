@@ -2,16 +2,22 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import httpx
 
+from app.db.session import engine, init_db, seed_demo_api_key
+from app.middleware.auth import AuthMiddleware
 from app.routes import chat
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await init_db()
+    await seed_demo_api_key()
+
     # Initialize shared HTTP client for all downstream provider requests
     # This prevents socket exhaustion under load
     app.state.http_client = httpx.AsyncClient(timeout=60.0)
     yield
     # Clean up gracefully on shutdown
     await app.state.http_client.aclose()
+    await engine.dispose()
 
 app = FastAPI(
     title="LLM Inference Gateway",
@@ -19,6 +25,8 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan
 )
+
+app.add_middleware(AuthMiddleware)
 
 app.include_router(chat.router)
 
