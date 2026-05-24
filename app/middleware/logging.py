@@ -1,9 +1,7 @@
 """
 Request logging middleware.
 
-Captures provider, model, latency, and token counts for every proxied request
-and writes them asynchronously to Postgres. Provider/model are set on
-request.state by the chat route (never read from the request body here).
+Writes provider, model, latency, tokens, cost, cache, and fallback flags to Postgres.
 """
 
 import time
@@ -15,7 +13,14 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.db.session import engine
 from app.models.db import RequestLog
 
-EXEMPT_PATHS = frozenset({"/health", "/docs", "/openapi.json", "/redoc"})
+EXEMPT_PATHS = frozenset({
+    "/health",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+    "/admin",
+    "/admin/api/stats",
+})
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
@@ -33,9 +38,12 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         provider = getattr(request.state, "provider", "unknown")
         model = getattr(request.state, "model", "unknown")
-
-        prompt_tokens = int(response.headers.get("x-prompt-tokens", 0))
-        completion_tokens = int(response.headers.get("x-completion-tokens", 0))
+        prompt_tokens = getattr(request.state, "prompt_tokens", 0)
+        completion_tokens = getattr(request.state, "completion_tokens", 0)
+        total_tokens = getattr(request.state, "total_tokens", prompt_tokens + completion_tokens)
+        cost_usd = getattr(request.state, "cost_usd", 0.0)
+        cached = getattr(request.state, "cached", False)
+        fallback_used = getattr(request.state, "fallback_used", False)
 
         try:
             async with AsyncSession(engine) as session:
@@ -46,7 +54,10 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                     latency_ms=latency_ms,
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
-                    total_tokens=prompt_tokens + completion_tokens,
+                    total_tokens=total_tokens,
+                    cost_usd=cost_usd,
+                    cached=cached,
+                    fallback_used=fallback_used,
                 )
                 session.add(log)
                 await session.commit()

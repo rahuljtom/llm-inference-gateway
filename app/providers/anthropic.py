@@ -4,6 +4,7 @@ from typing import AsyncGenerator
 
 import httpx
 
+from app.core.settings import settings
 from app.models.chat import (
     ChatCompletionResponse,
     ChatMessage,
@@ -13,6 +14,7 @@ from app.models.chat import (
 from app.providers.base import BaseProvider
 
 ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages"
+_REQUEST_TIMEOUT = httpx.Timeout(settings.PROVIDER_TIMEOUT_SECONDS)
 
 
 class AnthropicProvider(BaseProvider):
@@ -52,10 +54,16 @@ class AnthropicProvider(BaseProvider):
     async def complete(self, request: GatewayChatRequest) -> ChatCompletionResponse:
         payload = self._anthropic_payload(request)
         response = await self.client.post(
-            self.api_url, headers=self._headers(), json=payload
+            self.api_url,
+            headers=self._headers(),
+            json=payload,
+            timeout=_REQUEST_TIMEOUT,
         )
         response.raise_for_status()
         data = response.json()
+        usage_data = data.get("usage") or {}
+        input_tokens = usage_data.get("input_tokens", 0)
+        output_tokens = usage_data.get("output_tokens", 0)
 
         return ChatCompletionResponse(
             id=data.get("id", f"ant-{int(time.time())}"),
@@ -70,13 +78,22 @@ class AnthropicProvider(BaseProvider):
                     finish_reason="stop",
                 )
             ],
+            usage={
+                "prompt_tokens": input_tokens,
+                "completion_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+            },
         )
 
     async def stream(self, request: GatewayChatRequest) -> AsyncGenerator[str, None]:
         payload = self._anthropic_payload(request, stream=True)
 
         async with self.client.stream(
-            "POST", self.api_url, headers=self._headers(), json=payload
+            "POST",
+            self.api_url,
+            headers=self._headers(),
+            json=payload,
+            timeout=_REQUEST_TIMEOUT,
         ) as response:
             response.raise_for_status()
             async for line in response.aiter_lines():
