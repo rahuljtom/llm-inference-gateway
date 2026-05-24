@@ -64,3 +64,49 @@ async def check_rate_limit(
         remaining=max(0, limit - current_count),
         retry_after=window_seconds
     )
+
+
+def _parse_tpm_member(member: str) -> int:
+    # member format: "{tokens}:{uuid}"
+    return int(member.split(":", 1)[0])
+
+
+async def get_tpm_usage(key: str, window_seconds: int = 60) -> int:
+    redis_key = f"rl:tpm:{key}"
+    now = time.time()
+    window_start = now - window_seconds
+    await redis_client.zremrangebyscore(redis_key, 0, window_start)
+    members = await redis_client.zrange(redis_key, 0, -1)
+    return sum(_parse_tpm_member(m) for m in members)
+
+
+async def check_tpm_rate_limit(
+    key: str,
+    token_estimate: int,
+    limit: int,
+    window_seconds: int = 60,
+) -> RateLimitResult:
+    current = await get_tpm_usage(key, window_seconds)
+    projected = current + token_estimate
+    return RateLimitResult(
+        allowed=projected <= limit,
+        limit=limit,
+        remaining=max(0, limit - projected),
+        retry_after=window_seconds,
+    )
+
+
+async def record_tpm_usage(
+    key: str,
+    tokens: int,
+    window_seconds: int = 60,
+) -> None:
+    if tokens <= 0:
+        return
+    redis_key = f"rl:tpm:{key}"
+    now = time.time()
+    member = f"{tokens}:{uuid.uuid4()}"
+    pipeline = redis_client.pipeline()
+    pipeline.zadd(redis_key, {member: now})
+    pipeline.expire(redis_key, window_seconds)
+    await pipeline.execute()
