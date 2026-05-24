@@ -79,6 +79,21 @@ curl -N http://127.0.0.1:8000/v1/chat/completions \
     "stream": true
   }'
 
+# WITH FALLBACK (body — used on timeout or 5xx)
+
+curl http://127.0.0.1:8000/v1/chat/completions \
+  -H "Authorization: Bearer demo-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "openai",
+    "api_key": "sk_PRIMARY",
+    "fallback_provider": "groq",
+    "fallback_api_key": "gsk_FALLBACK",
+    "fallback_model": "llama-3.1-8b-instant",
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "hello"}]
+  }'
+
 # INVALID PROVIDER
 
 curl -i http://127.0.0.1:8000/v1/chat/completions \

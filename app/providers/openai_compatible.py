@@ -2,8 +2,11 @@ from typing import AsyncGenerator
 
 import httpx
 
+from app.core.settings import settings
 from app.models.chat import ChatCompletionResponse, GatewayChatRequest
 from app.providers.base import BaseProvider
+
+_REQUEST_TIMEOUT = httpx.Timeout(settings.PROVIDER_TIMEOUT_SECONDS)
 
 
 class OpenAICompatibleProvider(BaseProvider):
@@ -27,7 +30,10 @@ class OpenAICompatibleProvider(BaseProvider):
     async def complete(self, request: GatewayChatRequest) -> ChatCompletionResponse:
         payload = request.upstream_payload()
         response = await self.client.post(
-            self.api_url, headers=self._headers(), json=payload
+            self.api_url,
+            headers=self._headers(),
+            json=payload,
+            timeout=_REQUEST_TIMEOUT,
         )
         response.raise_for_status()
         return ChatCompletionResponse(**response.json())
@@ -37,7 +43,11 @@ class OpenAICompatibleProvider(BaseProvider):
         payload["stream"] = True
 
         async with self.client.stream(
-            "POST", self.api_url, headers=self._headers(), json=payload
+            "POST",
+            self.api_url,
+            headers=self._headers(),
+            json=payload,
+            timeout=_REQUEST_TIMEOUT,
         ) as response:
             response.raise_for_status()
             async for line in response.aiter_lines():

@@ -23,8 +23,11 @@ class ChatCompletionBody(BaseModel):
     temperature: Optional[float] = Field(default=1.0, ge=0.0, le=2.0)
     max_tokens: Optional[int] = Field(default=None, ge=1)
     stream: Optional[bool] = False
+    fallback_provider: Optional[str] = None
+    fallback_api_key: Optional[SecretStr] = None
+    fallback_model: Optional[str] = None
 
-    @field_validator("provider")
+    @field_validator("provider", "fallback_provider")
     @classmethod
     def normalize_provider(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
@@ -36,6 +39,19 @@ class ChatCompletionBody(BaseModel):
             provider=provider,
             api_key=api_key,
             model=self.model,
+            messages=self.messages,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            stream=self.stream,
+        )
+
+    def to_fallback_gateway(
+        self, provider: str, api_key: SecretStr
+    ) -> Optional["GatewayChatRequest"]:
+        return GatewayChatRequest(
+            provider=provider,
+            api_key=api_key,
+            model=self.fallback_model or self.model,
             messages=self.messages,
             temperature=self.temperature,
             max_tokens=self.max_tokens,
