@@ -5,7 +5,14 @@ from starlette.responses import JSONResponse
 from app.core.security import hash_api_key
 from app.db.session import get_api_key_by_hash
 
-EXEMPT_PATHS = frozenset({"/health", "/docs", "/openapi.json", "/redoc"})
+EXEMPT_PATHS = frozenset({
+    "/health",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+    "/admin",
+    "/admin/api/stats",
+})
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

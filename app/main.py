@@ -6,7 +6,7 @@ from app.db.session import engine, init_db, seed_demo_api_key
 from app.middleware.auth import AuthMiddleware
 from app.middleware.ratelimit import RateLimitMiddleware
 from app.middleware.logging import LoggingMiddleware
-from app.routes import chat
+from app.routes import admin, chat
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,6 +33,7 @@ app.add_middleware(RateLimitMiddleware)   # runs second: checks limits
 app.add_middleware(AuthMiddleware)        # runs first: populates api_key
 
 app.include_router(chat.router)
+app.include_router(admin.router)
 
 @app.get("/health")
 async def health():
