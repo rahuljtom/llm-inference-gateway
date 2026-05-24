@@ -1,4 +1,6 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "LLM Inference Gateway"
@@ -10,7 +12,15 @@ class Settings(BaseSettings):
     PROVIDER_TIMEOUT_SECONDS: float = 30.0
     CACHE_ENABLED: bool = True
     CACHE_TTL_SECONDS: int = 3600
-    
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def normalize_postgres_url(cls, value: str) -> str:
+        """Render Postgres uses postgresql://; SQLAlchemy async needs postgresql+asyncpg://."""
+        if isinstance(value, str) and value.startswith("postgresql://"):
+            return "postgresql+asyncpg://" + value[len("postgresql://") :]
+        return value
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

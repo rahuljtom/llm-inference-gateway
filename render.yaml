@@ -1,0 +1,42 @@
+# Render Blueprint — LLM Inference Gateway
+# https://render.com/docs/blueprint-spec
+#
+# Deploy: connect this repo in Render → New → Blueprint → apply render.yaml
+# BYOK: no upstream provider keys here; clients send X-Provider-Api-Key per request.
+
+services:
+  - type: web
+    name: llm-inference-gateway
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gateway-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: gateway-redis
+          property: connectionString
+      - key: PROVIDER_TIMEOUT_SECONDS
+        value: "30"
+      - key: CACHE_ENABLED
+        value: "true"
+      - key: CACHE_TTL_SECONDS
+        value: "3600"
+
+  - type: keyvalue
+    name: gateway-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+
+databases:
+  - name: gateway-db
+    plan: free
+    databaseName: gateway
+    user: gateway

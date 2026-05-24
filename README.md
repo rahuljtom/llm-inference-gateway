@@ -25,12 +25,12 @@ This project is a lightweight inference gateway that normalizes multiple LLM pro
 ### Features
 
 - OpenAI-compatible `/v1/chat/completions` API
-- Provider routing based on model prefixes
-- Streaming response normalization across providers
-- Redis-backed token bucket rate limiting
-- Exact-match response caching
-- Provider fallback on timeout or upstream failure
-- PostgreSQL request logging and usage tracking
+- **BYOK**: explicit `provider` + upstream API key (JSON body or `X-Provider` / `X-Provider-Api-Key` headers)
+- Streaming response normalization across providers (OpenAI, Anthropic, Groq)
+- Redis sliding-window **RPM + TPM** rate limiting per gateway API key
+- Exact-match response caching (non-streaming)
+- Provider fallback on timeout or upstream failure (optional BYOK fallback credentials)
+- PostgreSQL request logging and usage analytics (`/admin`)
 
 ## Architecture
 
@@ -41,11 +41,11 @@ graph TD
     Gateway -->|Rate Limit and Cache Check| Redis[(Redis)]
     Gateway -->|Auth and Usage Logging| Postgres[(PostgreSQL)]
 
-    Gateway -->|Normalize and Proxy| Router{Provider Router}
+    Gateway -->|BYOK provider field| Router{Provider Registry}
 
-    Router -->|GPT Models| OpenAI[OpenAI API]
-    Router -->|Claude Models| Anthropic[Anthropic API]
-    Router -->|Llama Models| Groq[Groq API]
+    Router -->|provider=openai| OpenAI[OpenAI API]
+    Router -->|provider=anthropic| Anthropic[Anthropic API]
+    Router -->|provider=groq| Groq[Groq API]
 ```
 
 ## Design Decisions
@@ -76,6 +76,11 @@ docker compose up -d
 ```bash
 uvicorn app.main:app --reload
 ```
+
+## Deploy and benchmarks
+
+- **Render (Blueprint):** [`render.yaml`](render.yaml) + [docs/deploy-render.md](docs/deploy-render.md)
+- **Load tests (`oha`):** [scripts/bench.sh](scripts/bench.sh) + [docs/benchmarks.md](docs/benchmarks.md)
 
 ## BYOK Credentials
 
