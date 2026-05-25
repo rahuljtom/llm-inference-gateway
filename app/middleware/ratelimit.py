@@ -81,8 +81,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         actual_tokens = getattr(request.state, "total_tokens", 0)
         if actual_tokens > 0:
             await record_tpm_usage(f"api:{api_key.id}:tpm", actual_tokens)
-        elif token_estimate > 0:
-            await record_tpm_usage(f"api:{api_key.id}:tpm", token_estimate)
 
         response.headers["X-RateLimit-Limit-RPM"] = str(rpm_result.limit)
         response.headers["X-RateLimit-Remaining-RPM"] = str(rpm_result.remaining)

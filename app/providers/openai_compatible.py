@@ -41,6 +41,7 @@ class OpenAICompatibleProvider(BaseProvider):
     async def stream(self, request: GatewayChatRequest) -> AsyncGenerator[str, None]:
         payload = request.upstream_payload()
         payload["stream"] = True
+        payload["stream_options"] = {"include_usage": True}
 
         async with self.client.stream(
             "POST",

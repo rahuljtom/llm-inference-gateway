@@ -96,17 +96,37 @@ class AnthropicProvider(BaseProvider):
             timeout=_REQUEST_TIMEOUT,
         ) as response:
             response.raise_for_status()
+            
+            input_tokens = 0
+            output_tokens = 0
+            
             async for line in response.aiter_lines():
                 if line.startswith("data: "):
                     data_str = line[6:]
                     if data_str == "[DONE]":
+                        # Yield usage chunk right before DONE
+                        usage_chunk = {
+                            "id": f"ant-usage-{int(time.time())}",
+                            "choices": [],
+                            "usage": {
+                                "prompt_tokens": input_tokens,
+                                "completion_tokens": output_tokens,
+                                "total_tokens": input_tokens + output_tokens,
+                            }
+                        }
+                        yield f"data: {json.dumps(usage_chunk)}\n\n"
                         yield "data: [DONE]\n\n"
                         break
 
                     try:
                         chunk = json.loads(data_str)
-                        if (
-                            chunk.get("type") == "content_block_delta"
+                        chunk_type = chunk.get("type")
+                        if chunk_type == "message_start":
+                            input_tokens = chunk.get("message", {}).get("usage", {}).get("input_tokens", 0)
+                        elif chunk_type == "message_delta":
+                            output_tokens = chunk.get("usage", {}).get("output_tokens", 0)
+                        elif (
+                            chunk_type == "content_block_delta"
                             and chunk["delta"]["type"] == "text_delta"
                         ):
                             out = {

@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,6 +13,8 @@ class Settings(BaseSettings):
     PROVIDER_TIMEOUT_SECONDS: float = 30.0
     CACHE_ENABLED: bool = True
     CACHE_TTL_SECONDS: int = 3600
+    
+    ADMIN_API_KEY: Optional[str] = None
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

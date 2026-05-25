@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 from fastapi.responses import StreamingResponse
 
 from app.models.chat import ChatCompletionBody
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/v1", tags=["chat"])
 
 
 @router.post("/chat/completions")
-async def chat_completions(body: ChatCompletionBody, request: Request):
+async def chat_completions(body: ChatCompletionBody, request: Request, response: Response):
     gateway_request = build_gateway_request(request, body)
     fallback = _resolve_fallback(request, body)
 
@@ -26,6 +26,11 @@ async def chat_completions(body: ChatCompletionBody, request: Request):
         return StreamingResponse(
             execute_stream(request, gateway_request, fallback),
             media_type="text/event-stream",
+            headers={"X-Cache-Hit": "MISS"},
         )
 
-    return await execute_completion(request, body, gateway_request, fallback)
+    res_data = await execute_completion(request, body, gateway_request, fallback)
+    response.headers["X-Cache-Hit"] = "HIT" if request.state.cached else "MISS"
+    if request.state.fallback_used:
+        response.headers["X-Gateway-Fallback"] = "true"
+    return res_data

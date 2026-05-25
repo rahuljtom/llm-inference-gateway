@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from typing import AsyncGenerator, Optional
 
@@ -128,7 +129,28 @@ async def execute_stream(
     )
 
     async def _stream_from(prov: BaseProvider, req: GatewayChatRequest) -> AsyncGenerator[str, None]:
+        chars_yielded = 0
         async for chunk in prov.stream(req):
+            if chunk.startswith("data: ") and chunk != "data: [DONE]\n\n":
+                try:
+                    data = json.loads(chunk[6:])
+                    
+                    if "choices" in data and data["choices"]:
+                        delta = data["choices"][0].get("delta", {})
+                        chars_yielded += len(delta.get("content", ""))
+                    
+                    if "usage" in data and data["usage"]:
+                        usage = data["usage"]
+                        request.state.prompt_tokens = usage.get("prompt_tokens", 0)
+                        request.state.completion_tokens = usage.get("completion_tokens", 0)
+                        request.state.total_tokens = usage.get("total_tokens", 0)
+                except json.JSONDecodeError:
+                    pass
+            elif chunk == "data: [DONE]\n\n":
+                if not getattr(request.state, "total_tokens", 0):
+                    comp_tokens = max(1, chars_yielded // 4)
+                    request.state.completion_tokens = comp_tokens
+                    request.state.total_tokens = comp_tokens
             yield chunk
 
     try:

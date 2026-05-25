@@ -26,11 +26,11 @@ This project is a lightweight inference gateway that normalizes multiple LLM pro
 
 - OpenAI-compatible `/v1/chat/completions` API
 - **BYOK**: explicit `provider` + upstream API key (JSON body or `X-Provider` / `X-Provider-Api-Key` headers)
-- Streaming response normalization across providers (OpenAI, Anthropic, Groq)
+- Streaming response normalization across providers (OpenAI, Anthropic, Groq) **with accurate token usage tracking**
 - Redis sliding-window **RPM + TPM** rate limiting per gateway API key
-- Exact-match response caching (non-streaming)
+- Exact-match response caching (non-streaming) **with `X-Cache-Hit` header observability**
 - Provider fallback on timeout or upstream failure (optional BYOK fallback credentials)
-- PostgreSQL request logging and usage analytics (`/admin`)
+- PostgreSQL request logging and usage analytics via the `/admin` dashboard **(secured via `ADMIN_API_KEY`)**
 
 ## Architecture
 

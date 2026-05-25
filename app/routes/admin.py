@@ -1,26 +1,38 @@
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.settings import settings
 from app.db.session import engine
 from app.models.db import RequestLog
 
 router = APIRouter(tags=["admin"])
 
+async def verify_admin(request: Request):
+    if not settings.ADMIN_API_KEY:
+        raise HTTPException(status_code=403, detail="Admin access is disabled (ADMIN_API_KEY not set).")
+    
+    header_key = request.headers.get("x-admin-api-key")
+    auth_header = request.headers.get("authorization")
+    bearer_key = auth_header[7:] if auth_header and auth_header.lower().startswith("bearer ") else None
+
+    if header_key != settings.ADMIN_API_KEY and bearer_key != settings.ADMIN_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid admin API key.")
+
 _ADMIN_HTML = Path(__file__).resolve().parent.parent / "static" / "admin.html"
 
 
-@router.get("/admin", response_class=HTMLResponse)
+@router.get("/admin", response_class=HTMLResponse, dependencies=[Depends(verify_admin)])
 async def admin_dashboard():
     return HTMLResponse(_ADMIN_HTML.read_text(encoding="utf-8"))
 
 
-@router.get("/admin/api/stats")
+@router.get("/admin/api/stats", dependencies=[Depends(verify_admin)])
 async def admin_stats():
     # RequestLog.created_at is stored as naive UTC (TIMESTAMP WITHOUT TIME ZONE).
     since = datetime.utcnow() - timedelta(hours=24)
