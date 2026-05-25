@@ -25,7 +25,13 @@ EXEMPT_PATHS = frozenset({
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        if request.url.path in EXEMPT_PATHS:
+        path = request.url.path
+        if (
+            path in EXEMPT_PATHS
+            or path == "/"
+            or path == "/favicon.ico"
+            or path.startswith("/static")
+        ):
             return await call_next(request)
 
         api_key = getattr(request.state, "api_key", None)
