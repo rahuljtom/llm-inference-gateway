@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Inference Gateway</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --bg-panel: rgba(22, 27, 34, 0.7);
+            --border-color: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #7d8590;
+            --accent-color: #2f81f7;
+            --accent-hover: #1f6feb;
+            --user-msg-bg: #21262d;
+            --ai-msg-bg: transparent;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background-image: radial-gradient(circle at top right, rgba(47, 129, 247, 0.1), transparent 40%),
+                              radial-gradient(circle at bottom left, rgba(137, 87, 229, 0.1), transparent 40%);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            background-color: var(--bg-panel);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border-color);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .sidebar h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            background: -webkit-linear-gradient(45deg, #2f81f7, #8957e5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        input[type="text"], input[type="password"], select {
+            background-color: #0d1117;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus, select:focus {
+            border-color: var(--accent-color);
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Main Chat Area */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .chat-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-panel);
+            backdrop-filter: blur(16px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .chat-header h1 {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 80%;
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background-color: var(--user-msg-bg);
+            padding: 16px;
+            border-radius: 12px 12px 0 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .message.ai {
+            align-self: flex-start;
+            background-color: var(--ai-msg-bg);
+            padding: 16px;
+            border-radius: 12px 12px 12px 0;
+            max-width: 90%;
+        }
+
+        .message-content {
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+        
+        .message-content p { margin-bottom: 0.75em; }
+        .message-content p:last-child { margin-bottom: 0; }
+        .message-content pre {
+            background-color: #0d1117;
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+        .message-content code {
+            font-family: monospace;
+            background-color: rgba(110, 118, 129, 0.4);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+        }
+        .message-content pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .meta-badges {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background-color: var(--border-color);
+            color: var(--text-secondary);
+            border: 1px solid transparent;
+        }
+        .badge.hit { background-color: rgba(46, 160, 67, 0.15); color: #3fb950; border-color: rgba(46, 160, 67, 0.4); }
+        .badge.miss { background-color: rgba(248, 81, 73, 0.15); color: #ff7b72; border-color: rgba(248, 81, 73, 0.4); }
+        .badge.fallback { background-color: rgba(210, 153, 34, 0.15); color: #d29922; border-color: rgba(210, 153, 34, 0.4); }
+
+        .input-area {
+            padding: 24px;
+            background: linear-gradient(to top, var(--bg-color) 60%, transparent);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+            background-color: var(--bg-panel);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+
+        textarea {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            resize: none;
+            outline: none;
+            padding: 8px;
+            height: 44px;
+            max-height: 200px;
+            line-height: 1.5;
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0 20px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        button:disabled {
+            background-color: var(--border-color);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+        }
+
+        .loader {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--text-secondary);
+            animation: bounce 1.4s infinite ease-in-out both;
+            margin-right: 4px;
+        }
+        .loader:nth-child(1) { animation-delay: -0.32s; }
+        .loader:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>Gateway Demo</h2>
+        
+        <div class="form-group">
+            <label>Gateway API Key</label>
+            <input type="password" id="gateway-key" value="demo-key" placeholder="Bearer Token">
+        </div>
+
+        <div class="form-group">
+            <label>Model (Virtual or Real)</label>
+            <select id="model-select" onchange="toggleCustomModel()">
+                <option value="fast-chat">fast-chat (Groq Llama 3.1 8B)</option>
+                <option value="smart-chat">smart-chat (OpenAI GPT-4o)</option>
+                <option value="claude-chat">claude-chat (Anthropic Sonnet)</option>
+                <option value="custom">Custom...</option>
+            </select>
+            <input type="text" id="custom-model" style="display: none; margin-top: 8px;" placeholder="e.g. gpt-3.5-turbo">
+        </div>
+
+        <div class="form-group">
+            <label>Provider (BYOK Override)</label>
+            <select id="provider-select">
+                <option value="">Auto-route (Zero-config)</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="groq">Groq</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Upstream API Key (BYOK)</label>
+            <input type="password" id="upstream-key" placeholder="Leave empty for Managed Keys">
+        </div>
+
+        <div class="toggle-group">
+            <input type="checkbox" id="stream-toggle" checked>
+            <label for="stream-toggle">Stream Responses</label>
+        </div>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>LLM Inference Gateway</h1>
+        </div>
+        
+        <div class="messages" id="messages">
+            <!-- Messages will appear here -->
+            <div class="message ai">
+                <div class="message-content">
+                    <p>Welcome to the <strong>LLM Inference Gateway</strong> MVP! 🚀</p>
+                    <p>Try sending a message using the settings on the left. You can use zero-config auto-routing, or bring your own keys.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-wrapper">
+                <textarea id="chat-input" placeholder="Type a message..." rows="1" onkeydown="handleEnter(event)"></textarea>
+                <button id="send-btn" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatInput = document.getElementById('chat-input');
+        const messagesDiv = document.getElementById('messages');
+        const sendBtn = document.getElementById('send-btn');
+        let chatHistory = [];
+
+        function toggleCustomModel() {
+            const select = document.getElementById('model-select');
+            const customInput = document.getElementById('custom-model');
+            if (select.value === 'custom') {
+                customInput.style.display = 'block';
+            } else {
+                customInput.style.display = 'none';
+            }
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function appendMessage(role, content) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${role}`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = marked.parse(content);
+            
+            msgDiv.appendChild(contentDiv);
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return { msgDiv, contentDiv };
+        }
+
+        function appendMetaBadges(msgDiv, headers, stream) {
+            const badgesDiv = document.createElement('div');
+            badgesDiv.className = 'meta-badges';
+
+            const cacheHit = headers.get('X-Cache-Hit');
+            if (cacheHit) {
+                const badge = document.createElement('span');
+                badge.className = `badge ${cacheHit === 'HIT' ? 'hit' : 'miss'}`;
+                badge.innerText = `Cache ${cacheHit}`;
+                badgesDiv.appendChild(badge);
+            }
+
+            const fallback = headers.get('X-Gateway-Fallback');
+            if (fallback === 'true') {
+                const badge = document.createElement('span');
+                badge.className = 'badge fallback';
+                badge.innerText = 'Fallback Triggered';
+                badgesDiv.appendChild(badge);
+            }
+            
+            if (stream) {
+                const badge = document.createElement('span');
+                badge.className = 'badge';
+                badge.innerText = 'Streamed';
+                badgesDiv.appendChild(badge);
+            }
+
+            msgDiv.appendChild(badgesDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const content = chatInput.value.trim();
+            if (!content) return;
+
+            // UI Reset
+            chatInput.value = '';
+            chatInput.style.height = '44px';
+            sendBtn.disabled = true;
+
+            appendMessage('user', content);
+            chatHistory.push({ role: 'user', content });
+
+            // Gather Settings
+            const gatewayKey = document.getElementById('gateway-key').value;
+            let model = document.getElementById('model-select').value;
+            if (model === 'custom') model = document.getElementById('custom-model').value;
+            const provider = document.getElementById('provider-select').value;
+            const upstreamKey = document.getElementById('upstream-key').value;
+            const stream = document.getElementById('stream-toggle').checked;
+
+            const reqHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${gatewayKey}`
+            };
+            if (provider) reqHeaders['X-Provider'] = provider;
+            if (upstreamKey) reqHeaders['X-Provider-Api-Key'] = upstreamKey;
+
+            const reqBody = {
+                model: model,
+                messages: chatHistory,
+                stream: stream
+            };
+
+            // Loading indicator
+            const { msgDiv, contentDiv } = appendMessage('ai', '');
+            contentDiv.innerHTML = '<div class="loader"></div><div class="loader"></div><div class="loader"></div>';
+
+            try {
+                const response = await fetch('/v1/chat/completions', {
+                    method: 'POST',
+                    headers: reqHeaders,
+                    body: JSON.stringify(reqBody)
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    contentDiv.innerHTML = `<p style="color: #ff7b72;">Error: ${err.detail || response.statusText}</p>`;
+                    sendBtn.disabled = false;
+                    return;
+                }
+
+                if (!stream) {
+                    const data = await response.json();
+                    const aiContent = data.choices[0].message.content;
+                    contentDiv.innerHTML = marked.parse(aiContent);
+                    chatHistory.push({ role: 'assistant', content: aiContent });
+                    appendMetaBadges(msgDiv, response.headers, false);
+                } else {
+                    contentDiv.innerHTML = ''; // clear loader
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+                    let aiContent = '';
+                    let usage = null;
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        const chunk = decoder.decode(value, { stream: true });
+                        const lines = chunk.split('\n');
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                                try {
+                                    const parsed = JSON.parse(line.slice(6));
+                                    if (parsed.choices && parsed.choices.length > 0 && parsed.choices[0].delta.content) {
+                                        aiContent += parsed.choices[0].delta.content;
+                                        contentDiv.innerHTML = marked.parse(aiContent);
+                                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                                    }
+                                    if (parsed.usage) {
+                                        usage = parsed.usage;
+                                    }
+                                } catch (e) {
+                                    // ignore parse errors for partial chunks
+                                }
+                            }
+                        }
+                    }
+                    chatHistory.push({ role: 'assistant', content: aiContent });
+                    appendMetaBadges(msgDiv, response.headers, true);
+                    
+                    if (usage) {
+                        const badgesDiv = msgDiv.querySelector('.meta-badges') || document.createElement('div');
+                        if (!msgDiv.querySelector('.meta-badges')) {
+                            badgesDiv.className = 'meta-badges';
+                            msgDiv.appendChild(badgesDiv);
+                        }
+                        const badge = document.createElement('span');
+                        badge.className = 'badge';
+                        badge.innerText = `${usage.total_tokens} tokens`;
+                        badgesDiv.appendChild(badge);
+                    }
+                }
+
+            } catch (error) {
+                contentDiv.innerHTML = `<p style="color: #ff7b72;">Connection error: ${error.message}</p>`;
+            } finally {
+                sendBtn.disabled = false;
+                chatInput.focus();
+            }
+        }
+
+        // Auto-resize textarea
+        chatInput.addEventListener('input', function() {
+            this.style.height = '44px';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+    </script>
+</body>
+</html>

@@ -35,6 +35,15 @@ app.add_middleware(AuthMiddleware)        # runs first: populates api_key
 app.include_router(chat.router)
 app.include_router(admin.router)
 
+from pathlib import Path
+from fastapi.responses import HTMLResponse
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "gateway": "online"}
+
+_INDEX_HTML = Path(__file__).parent / "static" / "index.html"
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    return HTMLResponse(_INDEX_HTML.read_text(encoding="utf-8"))
