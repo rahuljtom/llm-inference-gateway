@@ -35,8 +35,12 @@ Set in Blueprint ([`render.yaml`](../render.yaml)) or the Render dashboard:
 | `PROVIDER_TIMEOUT_SECONDS` | `30` | Upstream httpx timeout |
 | `CACHE_ENABLED` | `true` | Exact-match cache (non-streaming) |
 | `CACHE_TTL_SECONDS` | `3600` | Cache TTL in seconds |
+| `ADMIN_API_KEY` | (Optional secret) | Secures the `/admin` dashboard |
+| `MANAGED_OPENAI_API_KEY` | (Optional secret) | OpenAI key for auto-routed or non-BYOK requests |
+| `MANAGED_ANTHROPIC_API_KEY` | (Optional secret) | Anthropic key for auto-routed or non-BYOK requests |
+| `MANAGED_GROQ_API_KEY` | (Optional secret) | Groq key for auto-routed or non-BYOK requests |
 
-Do **not** set `OPENAI_API_KEY`, `GROQ_API_KEY`, or similar on Render. Upstream credentials are per-request (headers or JSON body).
+Note: `OPENAI_API_KEY`, `GROQ_API_KEY`, and `ANTHROPIC_API_KEY` are intentionally prefixed with `MANAGED_` to differentiate gateway-level fallback keys from keys expected by SDKs running locally on the gateway machine.
 
 ### `DATABASE_URL` and asyncpg
 
