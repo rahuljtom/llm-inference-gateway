@@ -26,6 +26,8 @@ This project is a lightweight inference gateway that normalizes multiple LLM pro
 
 - OpenAI-compatible `/v1/chat/completions` API
 - **BYOK**: explicit `provider` + upstream API key (JSON body or `X-Provider` / `X-Provider-Api-Key` headers)
+- **Managed Keys**: gateway can hold provider API keys for zero-config client requests
+- **Auto-Routing**: virtual model aliases (e.g. `fast-chat`) automatically route to the best provider
 - Streaming response normalization across providers (OpenAI, Anthropic, Groq) **with accurate token usage tracking**
 - Redis sliding-window **RPM + TPM** rate limiting per gateway API key
 - Exact-match response caching (non-streaming) **with `X-Cache-Hit` header observability**
