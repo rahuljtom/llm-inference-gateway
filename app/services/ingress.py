@@ -5,32 +5,70 @@ from app.core.constants import X_PROVIDER, X_PROVIDER_API_KEY
 from app.models.chat import ChatCompletionBody, GatewayChatRequest
 
 
-def resolve_byok_credentials(request: Request, body: ChatCompletionBody) -> tuple[str, str]:
+from app.services.keys import resolve_managed_key
+from app.services.routing import resolve_route
+
+def resolve_credentials(request: Request, body: ChatCompletionBody) -> tuple[str, str, str]:
     """
-    Resolve upstream provider and API key from headers and/or body.
-    Headers override body when both are present.
+    Resolve upstream provider, model, and API key.
+    1. Check explicit provider in headers or body.
+    2. If no explicit provider, attempt auto-routing based on model.
+    3. Determine API key: explicit BYOK, else managed key.
+    Returns (provider, model, api_key).
     """
     header_provider = request.headers.get(X_PROVIDER)
     header_api_key = request.headers.get(X_PROVIDER_API_KEY)
 
-    provider = (header_provider or body.provider or "").strip().lower()
+    explicit_provider = (header_provider or body.provider or "").strip().lower()
+    
+    # Routing
+    if explicit_provider:
+        provider = explicit_provider
+        model = body.model
+    else:
+        routed_provider, routed_model = resolve_route(body.model)
+        if not routed_provider:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing explicit provider and model '{body.model}' is not auto-routable.",
+            )
+        provider = routed_provider
+        model = routed_model
+
+    # Credentials
     body_api_key = body.api_key.get_secret_value().strip() if body.api_key else ""
-    api_key = (header_api_key or body_api_key or "").strip()
+    explicit_api_key = (header_api_key or body_api_key or "").strip()
 
-    if not provider or not api_key:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Missing provider credentials. Supply X-Provider and "
-                "X-Provider-Api-Key headers, or provider and api_key in the JSON body."
-            ),
-        )
+    if explicit_api_key:
+        api_key = explicit_api_key
+    else:
+        managed_key = resolve_managed_key(provider)
+        if managed_key:
+            api_key = managed_key
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"No API key provided for {provider} and no managed key is configured. "
+                    "Supply X-Provider-Api-Key header or api_key in the JSON body."
+                ),
+            )
 
-    return provider, api_key
+    return provider, model, api_key
 
 
 def build_gateway_request(
     request: Request, body: ChatCompletionBody
 ) -> GatewayChatRequest:
-    provider, api_key = resolve_byok_credentials(request, body)
-    return body.to_gateway(provider=provider, api_key=SecretStr(api_key))
+    provider, resolved_model, api_key = resolve_credentials(request, body)
+    
+    # The gateway request needs the potentially resolved model (e.g. fast-chat -> llama-3.1-8b-instant)
+    # So we'll override the model when creating the GatewayChatRequest
+    
+    # We can pass model=resolved_model to to_gateway
+    # but currently to_gateway only takes provider and api_key.
+    # Let's modify what it takes, or just override it post-creation.
+    req = body.to_gateway(provider=provider, api_key=SecretStr(api_key))
+    req.model = resolved_model
+    return req
+

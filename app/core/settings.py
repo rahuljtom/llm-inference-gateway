@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     
     ADMIN_API_KEY: Optional[str] = None
 
+    # Managed Keys
+    MANAGED_OPENAI_API_KEY: Optional[str] = None
+    MANAGED_ANTHROPIC_API_KEY: Optional[str] = None
+    MANAGED_GROQ_API_KEY: Optional[str] = None
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def normalize_postgres_url(cls, value: str) -> str:

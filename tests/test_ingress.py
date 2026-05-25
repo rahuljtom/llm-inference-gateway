@@ -6,7 +6,7 @@ from pydantic import SecretStr
 from starlette.requests import Request
 
 from app.models.chat import ChatCompletionBody, ChatMessage
-from app.services.ingress import build_gateway_request, resolve_byok_credentials
+from app.services.ingress import build_gateway_request, resolve_credentials
 
 
 def _request(headers: Optional[Dict[str, str]] = None) -> Request:
@@ -34,9 +34,9 @@ def test_resolve_from_body_only():
     request = _request()
     body = _body(provider="groq", api_key=SecretStr("gsk_test"))
 
-    provider, api_key = resolve_byok_credentials(request, body)
-
+    provider, model, api_key = resolve_credentials(request, body)
     assert provider == "groq"
+    assert model == "llama-3.1-8b-instant"
     assert api_key == "gsk_test"
 
 
@@ -49,9 +49,9 @@ def test_resolve_from_headers_only():
     )
     body = _body()
 
-    provider, api_key = resolve_byok_credentials(request, body)
-
+    provider, model, api_key = resolve_credentials(request, body)
     assert provider == "openai"
+    assert model == "llama-3.1-8b-instant"
     assert api_key == "sk_test"
 
 
@@ -64,9 +64,9 @@ def test_headers_override_body():
     )
     body = _body(provider="groq", api_key=SecretStr("gsk_body"))
 
-    provider, api_key = resolve_byok_credentials(request, body)
-
+    provider, model, api_key = resolve_credentials(request, body)
     assert provider == "anthropic"
+    assert model == "llama-3.1-8b-instant"
     assert api_key == "ant_header"
 
 
@@ -75,7 +75,7 @@ def test_missing_credentials_raises_400():
     body = _body()
 
     with pytest.raises(HTTPException) as exc:
-        resolve_byok_credentials(request, body)
+        resolve_credentials(request, body)
 
     assert exc.value.status_code == 400
 
@@ -85,7 +85,7 @@ def test_whitespace_only_api_key_raises_400():
     body = _body(provider="groq", api_key=SecretStr("   "))
 
     with pytest.raises(HTTPException) as exc:
-        resolve_byok_credentials(request, body)
+        resolve_credentials(request, body)
 
     assert exc.value.status_code == 400
 
@@ -95,7 +95,7 @@ def test_whitespace_only_header_api_key_raises_400():
     body = _body()
 
     with pytest.raises(HTTPException) as exc:
-        resolve_byok_credentials(request, body)
+        resolve_credentials(request, body)
 
     assert exc.value.status_code == 400
 
