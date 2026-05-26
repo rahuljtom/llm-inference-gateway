@@ -23,11 +23,13 @@ class AnthropicProvider(BaseProvider):
         self.api_url = ANTHROPIC_MESSAGES_URL
 
     def _headers(self) -> dict:
-        return {
-            "x-api-key": self.upstream_api_key,
+        headers = {
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
         }
+        if self.upstream_api_key:
+            headers["x-api-key"] = self.upstream_api_key
+        return headers
 
     def _anthropic_payload(self, request: GatewayChatRequest, stream: bool = False) -> dict:
         anthropic_messages = [

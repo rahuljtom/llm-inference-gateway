@@ -22,10 +22,12 @@ class OpenAICompatibleProvider(BaseProvider):
         self.api_url = api_url
 
     def _headers(self):
-        return {
-            "Authorization": f"Bearer {self.upstream_api_key}",
+        headers = {
             "Content-Type": "application/json",
         }
+        if self.upstream_api_key:
+            headers["Authorization"] = f"Bearer {self.upstream_api_key}"
+        return headers
 
     async def complete(self, request: GatewayChatRequest) -> ChatCompletionResponse:
         payload = request.upstream_payload()

@@ -49,7 +49,10 @@ export default function App() {
     setMessages(prev => [...prev, aiMsg]);
 
     try {
-      const headers = { 'Content-Type': 'application/json' };
+      const headers = { 
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer demo-key'
+      };
       if (config.apiKey) headers['X-Provider-Api-Key'] = config.apiKey;
       if (config.routingMode === 'manual') headers['X-Provider'] = config.primaryProvider.split('-')[0];
       if (config.fallbackProvider && config.routingMode === 'auto') {

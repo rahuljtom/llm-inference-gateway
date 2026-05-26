@@ -36,9 +36,11 @@ def resolve_credentials(request: Request, body: ChatCompletionBody) -> tuple[str
         provider = routed_provider
         model = routed_model
 
-    # Credentials
+    import logging
     body_api_key = body.api_key.get_secret_value().strip() if body.api_key else ""
     explicit_api_key = (header_api_key or body_api_key or "").strip()
+    
+    logging.info(f"Provider Auth Check: has_provider_key={bool(explicit_api_key)}")
 
     if explicit_api_key:
         if explicit_api_key.strip() == "":

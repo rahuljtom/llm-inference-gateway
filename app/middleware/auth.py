@@ -26,7 +26,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
         ):
             return await call_next(request)
 
+        import logging
         auth_header = request.headers.get("Authorization", "")
+        logging.info(f"Gateway Auth Check: has_auth_header={bool(auth_header)}")
         if not auth_header.startswith("Bearer "):
             return JSONResponse(
                 status_code=401,
