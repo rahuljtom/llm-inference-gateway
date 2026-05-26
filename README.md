@@ -5,8 +5,8 @@ OpenAI-compatible LLM gateway with multi-provider routing, streaming normalizati
 Built with **FastAPI**, **Redis**, and **PostgreSQL**.
 
 ## Demo
-Live: https://llm-inference-gateway.onrender.com/
-Walkthrough v1.0 (4 min): https://www.loom.com/share/8916ae03dfa345b683c4e235d31c3eea
+- Live: https://llm-inference-gateway.onrender.com/
+- Walkthrough v1.0 (4 min): https://www.loom.com/share/8916ae03dfa345b683c4e235d31c3eea
 
 <p align="center">
     <a href="https://www.loom.com/share/8916ae03dfa345b683c4e235d31c3eea">
