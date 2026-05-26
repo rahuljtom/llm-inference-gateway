@@ -5,7 +5,12 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.core.rate_limiter import check_rate_limit, check_tpm_rate_limit, record_tpm_usage
-EXEMPT_PATHS = frozenset({"/health", "/docs", "/openapi.json", "/redoc", "/admin", "/admin/api/stats"})
+EXEMPT_PATHS = frozenset({
+    "/health",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+})
 CHAT_PATH = "/v1/chat/completions"
 _CHARS_PER_TOKEN = 4
 _DEFAULT_COMPLETION_RESERVE = 1024
@@ -32,6 +37,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             or path == "/"
             or path == "/favicon.ico"
             or path.startswith("/static")
+            or path.startswith("/assets")
+            or path.startswith("/admin/api")
         ):
             return await call_next(request)
 

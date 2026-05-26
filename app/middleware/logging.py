@@ -18,8 +18,6 @@ EXEMPT_PATHS = frozenset({
     "/docs",
     "/openapi.json",
     "/redoc",
-    "/admin",
-    "/admin/api/stats",
 })
 
 
@@ -31,6 +29,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             or path == "/"
             or path == "/favicon.ico"
             or path.startswith("/static")
+            or path.startswith("/assets")
+            or path.startswith("/admin/api")
         ):
             return await call_next(request)
 
