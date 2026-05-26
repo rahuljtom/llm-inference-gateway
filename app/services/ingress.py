@@ -41,7 +41,12 @@ def resolve_credentials(request: Request, body: ChatCompletionBody) -> tuple[str
     explicit_api_key = (header_api_key or body_api_key or "").strip()
 
     if explicit_api_key:
-        api_key = explicit_api_key
+        if explicit_api_key.strip() == "":
+            raise HTTPException(
+                status_code=400,
+                detail=f"API key for {provider} cannot be empty or whitespace.",
+            )
+        api_key = explicit_api_key.strip()
     else:
         managed_key = resolve_managed_key(provider)
         if managed_key:

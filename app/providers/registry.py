@@ -3,6 +3,7 @@ from fastapi import HTTPException
 
 from app.providers.anthropic import AnthropicProvider
 from app.providers.base import BaseProvider
+from app.providers.gemini import GeminiProvider
 from app.providers.groq import GroqProvider
 from app.providers.openai import OpenAIProvider
 
@@ -10,6 +11,7 @@ PROVIDERS: dict[str, type[BaseProvider]] = {
     "openai": OpenAIProvider,
     "groq": GroqProvider,
     "anthropic": AnthropicProvider,
+    "gemini": GeminiProvider,
 }
 
 

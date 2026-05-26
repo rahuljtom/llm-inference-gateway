@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
 
-ProviderName = Literal["openai", "groq", "anthropic"]
+ProviderName = Literal["openai", "groq", "anthropic", "gemini"]
 
 
 class ChatMessage(BaseModel):

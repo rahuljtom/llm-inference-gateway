@@ -14,4 +14,6 @@ def resolve_managed_key(provider: str) -> Optional[str]:
         return settings.ANTHROPIC_API_KEY
     if provider == "groq":
         return settings.GROQ_API_KEY
+    if provider == "gemini":
+        return settings.GEMINI_API_KEY
     return None

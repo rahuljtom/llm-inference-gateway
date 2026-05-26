@@ -6,7 +6,8 @@ from typing import Optional, Tuple
 ROUTING_ALIASES = {
     "fast-chat": ("groq", "llama-3.1-8b-instant"),
     "smart-chat": ("openai", "gpt-4o"),
-    "claude-chat": ("anthropic", "claude-3-5-sonnet-20240620"),
+    "claude-chat": ("anthropic", "claude-3-5-sonnet-20241022"),
+    "gemini-chat": ("gemini", "gemini-1.5-flash"),
 }
 
 

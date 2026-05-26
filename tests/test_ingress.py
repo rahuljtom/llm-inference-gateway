@@ -80,7 +80,10 @@ def test_missing_credentials_raises_400():
     assert exc.value.status_code == 400
 
 
-def test_whitespace_only_api_key_raises_400():
+def test_whitespace_only_api_key_raises_400(monkeypatch):
+    from app.core.settings import settings
+    monkeypatch.setattr(settings, "GROQ_API_KEY", None)
+    
     request = _request()
     body = _body(provider="groq", api_key=SecretStr("   "))
 
@@ -90,7 +93,10 @@ def test_whitespace_only_api_key_raises_400():
     assert exc.value.status_code == 400
 
 
-def test_whitespace_only_header_api_key_raises_400():
+def test_whitespace_only_header_api_key_raises_400(monkeypatch):
+    from app.core.settings import settings
+    monkeypatch.setattr(settings, "GROQ_API_KEY", None)
+
     request = _request({"X-Provider": "groq", "X-Provider-Api-Key": "  \t"})
     body = _body()
 

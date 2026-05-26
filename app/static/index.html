@@ -3,532 +3,508 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LLM Inference Gateway</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <title>LLM Inference Control Plane</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#09090b',
+                        surface: '#18181b',
+                        surfaceHover: '#27272a',
+                        border: '#27272a',
+                        primary: '#3b82f6',
+                        success: '#22c55e',
+                        warning: '#eab308',
+                        danger: '#ef4444'
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Markdown & Highlighting -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <!-- Recharts -->
+    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
+
     <style>
-        :root {
-            --bg-color: #0d1117;
-            --bg-panel: rgba(22, 27, 34, 0.7);
-            --border-color: #30363d;
-            --text-primary: #e6edf3;
-            --text-secondary: #7d8590;
-            --accent-color: #2f81f7;
-            --accent-hover: #1f6feb;
-            --user-msg-bg: #21262d;
-            --ai-msg-bg: transparent;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
         body {
+            background-color: #09090b;
+            color: #f4f4f5;
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            display: flex;
-            height: 100vh;
             overflow: hidden;
-            background-image: radial-gradient(circle at top right, rgba(47, 129, 247, 0.1), transparent 40%),
-                              radial-gradient(circle at bottom left, rgba(137, 87, 229, 0.1), transparent 40%);
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: 320px;
-            background-color: var(--bg-panel);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-right: 1px solid var(--border-color);
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-            overflow-y: auto;
-            z-index: 10;
-        }
-
-        .sidebar h2 {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-            background: -webkit-linear-gradient(45deg, #2f81f7, #8957e5);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        label {
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--text-secondary);
-        }
-
-        input[type="text"], input[type="password"], select {
-            background-color: #0d1117;
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 10px 12px;
-            border-radius: 6px;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.9rem;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        input[type="text"]:focus, input[type="password"]:focus, select:focus {
-            border-color: var(--accent-color);
-        }
-
-        .toggle-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* Main Chat Area */
-        .chat-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-        }
-
-        .chat-header {
-            padding: 16px 24px;
-            border-bottom: 1px solid var(--border-color);
-            background-color: var(--bg-panel);
-            backdrop-filter: blur(16px);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 10;
-        }
-
-        .chat-header h1 {
-            font-size: 1.1rem;
-            font-weight: 500;
-        }
-
-        .messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-            scroll-behavior: smooth;
-        }
-
-        .message {
-            display: flex;
-            flex-direction: column;
-            max-width: 80%;
-            animation: fadeIn 0.3s ease-out forwards;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .message.user {
-            align-self: flex-end;
-            background-color: var(--user-msg-bg);
-            padding: 16px;
-            border-radius: 12px 12px 0 12px;
-            border: 1px solid var(--border-color);
-        }
-
-        .message.ai {
-            align-self: flex-start;
-            background-color: var(--ai-msg-bg);
-            padding: 16px;
-            border-radius: 12px 12px 12px 0;
-            max-width: 90%;
-        }
-
-        .message-content {
-            line-height: 1.6;
-            font-size: 0.95rem;
         }
         
-        .message-content p { margin-bottom: 0.75em; }
-        .message-content p:last-child { margin-bottom: 0; }
-        .message-content pre {
-            background-color: #0d1117;
-            border: 1px solid var(--border-color);
-            padding: 12px;
-            border-radius: 6px;
+        .glass-panel {
+            background: rgba(24, 24, 27, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(39, 39, 42, 0.8);
+        }
+
+        .markdown-body pre {
+            background: #000;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #27272a;
             overflow-x: auto;
-            margin: 12px 0;
-        }
-        .message-content code {
-            font-family: monospace;
-            background-color: rgba(110, 118, 129, 0.4);
-            padding: 0.2em 0.4em;
-            border-radius: 3px;
-        }
-        .message-content pre code {
-            background-color: transparent;
-            padding: 0;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
         }
 
-        .meta-badges {
-            display: flex;
-            gap: 8px;
-            margin-top: 12px;
-            flex-wrap: wrap;
+        .markdown-body code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
         }
 
-        .badge {
-            font-size: 0.75rem;
-            padding: 2px 8px;
-            border-radius: 12px;
-            background-color: var(--border-color);
-            color: var(--text-secondary);
-            border: 1px solid transparent;
-        }
-        .badge.hit { background-color: rgba(46, 160, 67, 0.15); color: #3fb950; border-color: rgba(46, 160, 67, 0.4); }
-        .badge.miss { background-color: rgba(248, 81, 73, 0.15); color: #ff7b72; border-color: rgba(248, 81, 73, 0.4); }
-        .badge.fallback { background-color: rgba(210, 153, 34, 0.15); color: #d29922; border-color: rgba(210, 153, 34, 0.4); }
-
-        .input-area {
-            padding: 24px;
-            background: linear-gradient(to top, var(--bg-color) 60%, transparent);
+        .markdown-body p {
+            margin-bottom: 0.75rem;
+            line-height: 1.6;
         }
 
-        .input-wrapper {
-            display: flex;
-            gap: 12px;
-            background-color: var(--bg-panel);
-            backdrop-filter: blur(16px);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        /* Flow Diagram Animations */
+        @keyframes flowPulse {
+            0% { opacity: 0.2; }
+            50% { opacity: 1; filter: drop-shadow(0 0 8px currentColor); }
+            100% { opacity: 0.2; }
         }
-
-        textarea {
-            flex: 1;
+        .anim-flow {
+            animation: flowPulse 1.5s infinite;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
             background: transparent;
-            border: none;
-            color: var(--text-primary);
-            font-family: 'Inter', sans-serif;
-            font-size: 0.95rem;
-            resize: none;
-            outline: none;
-            padding: 8px;
-            height: 44px;
-            max-height: 200px;
-            line-height: 1.5;
         }
-
-        button {
-            background-color: var(--accent-color);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 0 20px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.2s, transform 0.1s;
+        ::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 4px;
         }
-
-        button:hover {
-            background-color: var(--accent-hover);
-        }
-        button:active {
-            transform: scale(0.98);
-        }
-        button:disabled {
-            background-color: var(--border-color);
-            color: var(--text-secondary);
-            cursor: not-allowed;
-        }
-
-        .loader {
-            display: inline-block;
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background-color: var(--text-secondary);
-            animation: bounce 1.4s infinite ease-in-out both;
-            margin-right: 4px;
-        }
-        .loader:nth-child(1) { animation-delay: -0.32s; }
-        .loader:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #52525b;
         }
     </style>
 </head>
 <body>
+    <div id="root"></div>
 
-    <div class="sidebar">
-        <h2>Gateway Demo</h2>
-        
-        <div class="form-group">
-            <label>Gateway API Key</label>
-            <input type="password" id="gateway-key" value="demo-key" placeholder="Bearer Token">
-        </div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } = window.Recharts;
 
-        <div class="form-group">
-            <label>Model (Virtual or Real)</label>
-            <select id="model-select" onchange="toggleCustomModel()">
-                <option value="fast-chat">fast-chat (Groq Llama 3.1 8B)</option>
-                <option value="smart-chat">smart-chat (OpenAI GPT-4o)</option>
-                <option value="claude-chat">claude-chat (Anthropic Sonnet)</option>
-                <option value="custom">Custom...</option>
-            </select>
-            <input type="text" id="custom-model" style="display: none; margin-top: 8px;" placeholder="e.g. gpt-3.5-turbo">
-        </div>
-
-        <div class="form-group">
-            <label>Provider (BYOK Override)</label>
-            <select id="provider-select">
-                <option value="">Auto-route (Zero-config)</option>
-                <option value="openai">OpenAI</option>
-                <option value="anthropic">Anthropic</option>
-                <option value="groq">Groq</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>Upstream API Key (BYOK)</label>
-            <input type="password" id="upstream-key" placeholder="Leave empty for Managed Keys">
-        </div>
-
-        <div class="toggle-group">
-            <input type="checkbox" id="stream-toggle" checked>
-            <label for="stream-toggle">Stream Responses</label>
-        </div>
-    </div>
-
-    <div class="chat-container">
-        <div class="chat-header">
-            <h1>LLM Inference Gateway</h1>
-        </div>
-        
-        <div class="messages" id="messages">
-            <!-- Messages will appear here -->
-            <div class="message ai">
-                <div class="message-content">
-                    <p>Welcome to the <strong>LLM Inference Gateway</strong></p>
-                    <p>Try sending a message using the settings on the left. You can use zero-config auto-routing, or bring your own keys.</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="input-area">
-            <div class="input-wrapper">
-                <textarea id="chat-input" placeholder="Type a message..." rows="1" onkeydown="handleEnter(event)"></textarea>
-                <button id="send-btn" onclick="sendMessage()">Send</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const chatInput = document.getElementById('chat-input');
-        const messagesDiv = document.getElementById('messages');
-        const sendBtn = document.getElementById('send-btn');
-        let chatHistory = [];
-
-        function toggleCustomModel() {
-            const select = document.getElementById('model-select');
-            const customInput = document.getElementById('custom-model');
-            if (select.value === 'custom') {
-                customInput.style.display = 'block';
-            } else {
-                customInput.style.display = 'none';
-            }
-        }
-
-        function handleEnter(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        }
-
-        function appendMessage(role, content) {
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${role}`;
-            
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.innerHTML = marked.parse(content);
-            
-            msgDiv.appendChild(contentDiv);
-            messagesDiv.appendChild(msgDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            return { msgDiv, contentDiv };
-        }
-
-        function appendMetaBadges(msgDiv, headers, stream) {
-            const badgesDiv = document.createElement('div');
-            badgesDiv.className = 'meta-badges';
-
-            const cacheHit = headers.get('X-Cache-Hit');
-            if (cacheHit) {
-                const badge = document.createElement('span');
-                badge.className = `badge ${cacheHit === 'HIT' ? 'hit' : 'miss'}`;
-                badge.innerText = `Cache ${cacheHit}`;
-                badgesDiv.appendChild(badge);
-            }
-
-            const fallback = headers.get('X-Gateway-Fallback');
-            if (fallback === 'true') {
-                const badge = document.createElement('span');
-                badge.className = 'badge fallback';
-                badge.innerText = 'Fallback Triggered';
-                badgesDiv.appendChild(badge);
-            }
-            
-            if (stream) {
-                const badge = document.createElement('span');
-                badge.className = 'badge';
-                badge.innerText = 'Streamed';
-                badgesDiv.appendChild(badge);
-            }
-
-            msgDiv.appendChild(badgesDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        async function sendMessage() {
-            const content = chatInput.value.trim();
-            if (!content) return;
-
-            // UI Reset
-            chatInput.value = '';
-            chatInput.style.height = '44px';
-            sendBtn.disabled = true;
-
-            appendMessage('user', content);
-            chatHistory.push({ role: 'user', content });
-
-            // Gather Settings
-            const gatewayKey = document.getElementById('gateway-key').value;
-            let model = document.getElementById('model-select').value;
-            if (model === 'custom') model = document.getElementById('custom-model').value;
-            const provider = document.getElementById('provider-select').value;
-            const upstreamKey = document.getElementById('upstream-key').value;
-            const stream = document.getElementById('stream-toggle').checked;
-
-            const reqHeaders = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${gatewayKey}`
-            };
-            if (provider) reqHeaders['X-Provider'] = provider;
-            if (upstreamKey) reqHeaders['X-Provider-Api-Key'] = upstreamKey;
-
-            const reqBody = {
-                model: model,
-                messages: chatHistory,
-                stream: stream
-            };
-
-            // Loading indicator
-            const { msgDiv, contentDiv } = appendMessage('ai', '');
-            contentDiv.innerHTML = '<div class="loader"></div><div class="loader"></div><div class="loader"></div>';
-
-            try {
-                const response = await fetch('/v1/chat/completions', {
-                    method: 'POST',
-                    headers: reqHeaders,
-                    body: JSON.stringify(reqBody)
-                });
-
-                if (!response.ok) {
-                    const err = await response.json();
-                    contentDiv.innerHTML = `<p style="color: #ff7b72;">Error: ${err.detail || response.statusText}</p>`;
-                    sendBtn.disabled = false;
-                    return;
+        // Custom hook for Lucide Icons
+        const Icon = ({ name, className = "", size = 24 }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (iconRef.current && window.lucide) {
+                    window.lucide.createIcons({
+                        icons: { [name]: window.lucide.icons[name] },
+                        nameAttr: 'data-lucide',
+                        root: iconRef.current
+                    });
                 }
+            }, [name]);
+            return <span ref={iconRef}><i data-lucide={name} className={className} style={{ width: size, height: size }}></i></span>;
+        };
 
-                if (!stream) {
-                    const data = await response.json();
-                    const aiContent = data.choices[0].message.content;
-                    contentDiv.innerHTML = marked.parse(aiContent);
-                    chatHistory.push({ role: 'assistant', content: aiContent });
-                    appendMetaBadges(msgDiv, response.headers, false);
-                } else {
-                    contentDiv.innerHTML = ''; // clear loader
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            }
+        });
+
+        const App = () => {
+            const [messages, setMessages] = useState([]);
+            const [input, setInput] = useState("");
+            const [isStreaming, setIsStreaming] = useState(false);
+            const [config, setConfig] = useState({
+                primaryProvider: "fast-chat",
+                fallbackProvider: "gemini-chat",
+                routingMode: "auto",
+                apiKey: ""
+            });
+            const [metrics, setMetrics] = useState({
+                latencyHistory: Array(10).fill({ time: '', ms: 0 }),
+                avgLatency: 0,
+                requestCount: 0,
+                dbStatus: 'ok',
+                redisStatus: 'ok'
+            });
+            const [activeFlow, setActiveFlow] = useState(null);
+            const messagesEndRef = useRef(null);
+
+            const scrollToBottom = () => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            };
+
+            useEffect(() => {
+                scrollToBottom();
+            }, [messages]);
+
+            const handleSend = async () => {
+                if (!input.trim() || isStreaming) return;
+                
+                const userMsg = { role: 'user', content: input, timestamp: new Date().toISOString() };
+                setMessages(prev => [...prev, userMsg]);
+                setInput("");
+                setIsStreaming(true);
+                setActiveFlow('sending');
+
+                const startTime = Date.now();
+                let aiMsg = { role: 'assistant', content: '', timestamp: new Date().toISOString(), tokens: 0, duration: 0, provider: '' };
+                setMessages(prev => [...prev, aiMsg]);
+
+                try {
+                    const headers = {
+                        "Content-Type": "application/json"
+                    };
+                    
+                    if (config.apiKey) headers["X-Provider-Api-Key"] = config.apiKey;
+                    if (config.routingMode === 'manual') headers["X-Provider"] = config.primaryProvider.split('-')[0];
+                    
+                    if (config.fallbackProvider && config.routingMode === 'auto') {
+                        headers["X-Gateway-Fallback"] = config.fallbackProvider.split('-')[0];
+                    }
+
+                    const response = await fetch('/v1/chat/completions', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            model: config.primaryProvider,
+                            messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
+                            stream: true
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errText = await response.text();
+                        throw new Error(errText || `HTTP ${response.status}`);
+                    }
+
                     const reader = response.body.getReader();
-                    const decoder = new TextDecoder('utf-8');
-                    let aiContent = '';
-                    let usage = null;
+                    const decoder = new TextDecoder("utf-8");
+                    setActiveFlow('streaming');
+
+                    let tokenCount = 0;
+                    let contentBuffer = '';
 
                     while (true) {
                         const { done, value } = await reader.read();
                         if (done) break;
-                        
+
                         const chunk = decoder.decode(value, { stream: true });
                         const lines = chunk.split('\n');
-                        
+
                         for (const line of lines) {
                             if (line.startsWith('data: ') && line !== 'data: [DONE]') {
                                 try {
                                     const parsed = JSON.parse(line.slice(6));
+                                    
                                     if (parsed.error) {
-                                        contentDiv.innerHTML = `<p style="color: #ff7b72;">Upstream Error: ${parsed.error}</p>`;
-                                        break;
+                                        contentBuffer += `\n\n> **[System Error]:** ${parsed.error}`;
                                     }
-                                    if (parsed.choices && parsed.choices.length > 0 && parsed.choices[0].delta.content) {
-                                        aiContent += parsed.choices[0].delta.content;
-                                        contentDiv.innerHTML = marked.parse(aiContent);
-                                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+                                    if (parsed.choices && parsed.choices[0]?.delta?.content) {
+                                        contentBuffer += parsed.choices[0].delta.content;
+                                        tokenCount++;
                                     }
-                                    if (parsed.usage) {
-                                        usage = parsed.usage;
+                                    
+                                    if (parsed.model) {
+                                        aiMsg.provider = parsed.model;
                                     }
+
+                                    setMessages(prev => {
+                                        const newMsgs = [...prev];
+                                        newMsgs[newMsgs.length - 1] = {
+                                            ...aiMsg,
+                                            content: contentBuffer,
+                                            tokens: tokenCount,
+                                            duration: Date.now() - startTime
+                                        };
+                                        return newMsgs;
+                                    });
                                 } catch (e) {
-                                    // ignore parse errors for partial chunks
+                                    // Ignore partial JSON
                                 }
                             }
                         }
                     }
-                    chatHistory.push({ role: 'assistant', content: aiContent });
-                    appendMetaBadges(msgDiv, response.headers, true);
                     
-                    if (usage) {
-                        const badgesDiv = msgDiv.querySelector('.meta-badges') || document.createElement('div');
-                        if (!msgDiv.querySelector('.meta-badges')) {
-                            badgesDiv.className = 'meta-badges';
-                            msgDiv.appendChild(badgesDiv);
-                        }
-                        const badge = document.createElement('span');
-                        badge.className = 'badge';
-                        badge.innerText = `${usage.total_tokens} tokens`;
-                        badgesDiv.appendChild(badge);
-                    }
+                    const finalDuration = Date.now() - startTime;
+                    setMetrics(prev => ({
+                        ...prev,
+                        requestCount: prev.requestCount + 1,
+                        avgLatency: Math.floor((prev.avgLatency * prev.requestCount + finalDuration) / (prev.requestCount + 1)),
+                        latencyHistory: [...prev.latencyHistory.slice(1), { time: new Date().toLocaleTimeString(), ms: finalDuration }]
+                    }));
+
+                } catch (err) {
+                    setMessages(prev => {
+                        const newMsgs = [...prev];
+                        newMsgs[newMsgs.length - 1].content = `> **[Gateway Error]:** ${err.message}`;
+                        return newMsgs;
+                    });
+                } finally {
+                    setIsStreaming(false);
+                    setActiveFlow(null);
                 }
+            };
 
-            } catch (error) {
-                contentDiv.innerHTML = `<p style="color: #ff7b72;">Connection error: ${error.message}</p>`;
-            } finally {
-                sendBtn.disabled = false;
-                chatInput.focus();
-            }
-        }
+            const FlowNode = ({ label, active }) => (
+                <div className={`flex flex-col items-center justify-center p-2 rounded border ${active ? 'border-primary bg-primary/20 text-primary anim-flow' : 'border-border bg-surface text-gray-400'}`}>
+                    <span className="text-xs font-mono font-medium">{label}</span>
+                </div>
+            );
 
-        // Auto-resize textarea
-        chatInput.addEventListener('input', function() {
-            this.style.height = '44px';
-            this.style.height = (this.scrollHeight) + 'px';
-        });
+            return (
+                <div className="flex h-screen w-full font-sans">
+                    {/* LEFT SIDEBAR - CONFIG */}
+                    <aside className="w-64 glass-panel border-r flex flex-col p-4 space-y-6 shrink-0 z-10">
+                        <div>
+                            <h2 className="text-sm font-semibold tracking-wider text-gray-400 uppercase mb-4 flex items-center gap-2">
+                                <Icon name="settings" size={16} /> Routing Config
+                            </h2>
+                            
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs text-gray-500 font-mono mb-1 block">ROUTING_MODE</label>
+                                    <select 
+                                        value={config.routingMode} 
+                                        onChange={e => setConfig({...config, routingMode: e.target.value})}
+                                        className="w-full bg-black border border-border rounded p-2 text-sm text-gray-200 outline-none focus:border-primary"
+                                    >
+                                        <option value="auto">Auto (Managed)</option>
+                                        <option value="manual">Manual Override</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="text-xs text-gray-500 font-mono mb-1 block">PRIMARY_ENDPOINT</label>
+                                    <select 
+                                        value={config.primaryProvider} 
+                                        onChange={e => setConfig({...config, primaryProvider: e.target.value})}
+                                        className="w-full bg-black border border-border rounded p-2 text-sm text-gray-200 outline-none focus:border-primary"
+                                    >
+                                        <option value="fast-chat">Groq (Llama 3)</option>
+                                        <option value="gemini-chat">Gemini (1.5 Flash)</option>
+                                        <option value="smart-chat">OpenAI (GPT-4o)</option>
+                                        <option value="claude-chat">Anthropic (Claude 3.5)</option>
+                                    </select>
+                                </div>
+
+                                {config.routingMode === 'auto' && (
+                                    <div>
+                                        <label className="text-xs text-gray-500 font-mono mb-1 block">FALLBACK_ENDPOINT</label>
+                                        <select 
+                                            value={config.fallbackProvider} 
+                                            onChange={e => setConfig({...config, fallbackProvider: e.target.value})}
+                                            className="w-full bg-black border border-border rounded p-2 text-sm text-gray-200 outline-none focus:border-primary"
+                                        >
+                                            <option value="">None</option>
+                                            <option value="gemini-chat">Gemini (1.5 Flash)</option>
+                                            <option value="smart-chat">OpenAI (GPT-4o)</option>
+                                            <option value="fast-chat">Groq (Llama 3)</option>
+                                        </select>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="text-xs text-gray-500 font-mono mb-1 block">UPSTREAM_API_KEY (BYOK)</label>
+                                    <input 
+                                        type="password" 
+                                        placeholder="Optional override..."
+                                        value={config.apiKey}
+                                        onChange={e => setConfig({...config, apiKey: e.target.value})}
+                                        className="w-full bg-black border border-border rounded p-2 text-sm text-gray-200 outline-none focus:border-primary font-mono placeholder:text-gray-700"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-auto pt-4 border-t border-border">
+                            <div className="text-xs text-gray-500 font-mono flex items-center justify-between">
+                                <span>Version</span>
+                                <span>v2.1.0</span>
+                            </div>
+                        </div>
+                    </aside>
+
+                    {/* CENTER - MAIN VIEW */}
+                    <main className="flex-1 flex flex-col min-w-0 bg-background relative z-0">
+                        {/* TOP STATUS BAR */}
+                        <header className="h-14 glass-panel border-b flex items-center justify-between px-6 shrink-0">
+                            <div className="flex items-center gap-6">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-success"></div>
+                                    <span className="text-sm font-mono text-gray-300">Gateway API Online</span>
+                                </div>
+                                <div className="h-4 w-px bg-border"></div>
+                                <div className="flex items-center gap-4 text-xs font-mono text-gray-500">
+                                    <span className="flex items-center gap-1"><Icon name="database" size={14}/> DB: OK</span>
+                                    <span className="flex items-center gap-1"><Icon name="server" size={14}/> Redis: OK</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-6 text-xs font-mono text-gray-400">
+                                <span>REQ: <span className="text-gray-200">{metrics.requestCount}</span></span>
+                                <span>AVG LATENCY: <span className="text-gray-200">{metrics.avgLatency}ms</span></span>
+                            </div>
+                        </header>
+
+                        {/* CHAT AREA */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                            {messages.length === 0 && (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4">
+                                    <Icon name="terminal" size={48} className="opacity-20" />
+                                    <p className="font-mono text-sm">Waiting for incoming requests...</p>
+                                </div>
+                            )}
+                            
+                            {messages.map((msg, i) => (
+                                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-3xl w-full rounded-lg p-4 ${
+                                        msg.role === 'user' 
+                                            ? 'bg-primary/10 border border-primary/20 text-blue-50' 
+                                            : 'glass-panel text-gray-200'
+                                    }`}>
+                                        <div className="flex items-center justify-between mb-2 text-xs font-mono opacity-50">
+                                            <span>{msg.role === 'user' ? 'Client Request' : 'Provider Response'}</span>
+                                            {msg.role === 'assistant' && msg.duration > 0 && (
+                                                <div className="flex gap-4">
+                                                    <span>{msg.provider || 'router'}</span>
+                                                    <span>{msg.duration}ms</span>
+                                                    <span>{msg.tokens} tk</span>
+                                                    <span>{(msg.tokens / (msg.duration/1000)).toFixed(1)} tk/s</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div 
+                                            className="markdown-body text-sm"
+                                            dangerouslySetInnerHTML={{ __html: marked.parse(msg.content || (isStreaming && msg.role === 'assistant' ? '...' : '')) }}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* INPUT AREA */}
+                        <div className="p-4 border-t border-border glass-panel shrink-0">
+                            <div className="max-w-4xl mx-auto flex gap-4">
+                                <input 
+                                    type="text" 
+                                    value={input}
+                                    onChange={e => setInput(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && handleSend()}
+                                    placeholder="Enter prompt to dispatch through gateway..."
+                                    className="flex-1 bg-black border border-border rounded-lg px-4 py-3 text-sm text-gray-100 outline-none focus:border-primary font-mono placeholder:text-gray-600 transition-colors"
+                                />
+                                <button 
+                                    onClick={handleSend}
+                                    disabled={isStreaming || !input.trim()}
+                                    className="bg-primary hover:bg-blue-600 disabled:opacity-50 disabled:hover:bg-primary text-white rounded-lg px-6 py-3 font-semibold transition-colors flex items-center gap-2"
+                                >
+                                    <Icon name="send" size={18} />
+                                    Dispatch
+                                </button>
+                            </div>
+                        </div>
+                    </main>
+
+                    {/* RIGHT SIDEBAR - OBSERVABILITY */}
+                    <aside className="w-80 glass-panel border-l flex flex-col overflow-y-auto shrink-0 z-10">
+                        <div className="p-4 border-b border-border">
+                            <h2 className="text-sm font-semibold tracking-wider text-gray-400 uppercase flex items-center gap-2">
+                                <Icon name="activity" size={16} /> Observability
+                            </h2>
+                        </div>
+                        
+                        <div className="p-4 space-y-8">
+                            {/* Infra Flow */}
+                            <div>
+                                <h3 className="text-xs font-mono text-gray-500 mb-3">REQUEST PIPELINE</h3>
+                                <div className="flex justify-between items-center bg-black/50 rounded-lg p-4 border border-border">
+                                    <FlowNode label="CLIENT" active={activeFlow === 'sending'} />
+                                    <Icon name="arrow-right" size={14} className="text-gray-600" />
+                                    <FlowNode label="GATEWAY" active={activeFlow === 'sending' || activeFlow === 'streaming'} />
+                                    <Icon name="arrow-right" size={14} className="text-gray-600" />
+                                    <FlowNode label="LLM" active={activeFlow === 'streaming'} />
+                                </div>
+                            </div>
+
+                            {/* Latency Chart */}
+                            <div>
+                                <h3 className="text-xs font-mono text-gray-500 mb-3">LATENCY (MS)</h3>
+                                <div className="h-40 w-full bg-black/30 rounded-lg border border-border p-2">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={metrics.latencyHistory}>
+                                            <XAxis dataKey="time" hide />
+                                            <YAxis width={40} fontSize={10} tick={{fill: '#71717a'}} axisLine={false} tickLine={false} />
+                                            <Tooltip 
+                                                contentStyle={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '4px', fontSize: '12px' }}
+                                                itemStyle={{ color: '#3b82f6' }}
+                                            />
+                                            <Line type="monotone" dataKey="ms" stroke="#3b82f6" strokeWidth={2} dot={false} isAnimationActive={false} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* Provider Health */}
+                            <div>
+                                <h3 className="text-xs font-mono text-gray-500 mb-3">PROVIDER HEALTH</h3>
+                                <div className="space-y-2">
+                                    {['Groq', 'Gemini', 'OpenAI', 'Anthropic'].map(p => (
+                                        <div key={p} className="flex items-center justify-between p-2 rounded border border-border bg-black/20">
+                                            <span className="text-xs font-mono text-gray-300">{p}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] text-gray-500 font-mono">100% SLA</span>
+                                                <div className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_5px_#22c55e]"></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
