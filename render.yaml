@@ -9,7 +9,7 @@ services:
     name: llm-inference-gateway
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: npm install --prefix frontend && npm run build --prefix frontend && pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
