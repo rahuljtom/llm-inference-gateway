@@ -17,9 +17,9 @@ class Settings(BaseSettings):
     ADMIN_API_KEY: Optional[str] = None
 
     # Managed Keys
-    MANAGED_OPENAI_API_KEY: Optional[str] = None
-    MANAGED_ANTHROPIC_API_KEY: Optional[str] = None
-    MANAGED_GROQ_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: Optional[str] = None
+    ANTHROPIC_API_KEY: Optional[str] = None
+    GROQ_API_KEY: Optional[str] = None
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

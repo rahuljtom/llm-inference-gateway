@@ -9,9 +9,9 @@ def resolve_managed_key(provider: str) -> Optional[str]:
     """
     provider = provider.strip().lower()
     if provider == "openai":
-        return settings.MANAGED_OPENAI_API_KEY
+        return settings.OPENAI_API_KEY
     if provider == "anthropic":
-        return settings.MANAGED_ANTHROPIC_API_KEY
+        return settings.ANTHROPIC_API_KEY
     if provider == "groq":
-        return settings.MANAGED_GROQ_API_KEY
+        return settings.GROQ_API_KEY
     return None

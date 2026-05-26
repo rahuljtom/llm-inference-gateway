@@ -164,17 +164,21 @@ async def execute_stream(
                 request.app.state.http_client,
                 fallback.gateway_request.api_key.get_secret_value(),
             )
-            async for chunk in _stream_from(fb_provider, fallback.gateway_request):
-                yield chunk
+            try:
+                async for chunk in _stream_from(fb_provider, fallback.gateway_request):
+                    yield chunk
+            except Exception as fb_exc:
+                err_msg = str(fb_exc).replace('"', '\\"')
+                yield f'data: {{"error": "Fallback failed: {err_msg}"}}\n\n'
         elif isinstance(exc, httpx.HTTPStatusError):
-            raise HTTPException(
-                status_code=exc.response.status_code,
-                detail="Upstream provider error",
-            ) from exc
+            try:
+                detail = exc.response.json().get('error', {}).get('message', 'Upstream provider error')
+            except Exception:
+                detail = f"Upstream HTTP {exc.response.status_code} Error"
+            detail = detail.replace('"', '\\"')
+            yield f'data: {{"error": "{detail}"}}\n\n'
         elif isinstance(exc, httpx.TimeoutException):
-            raise HTTPException(
-                status_code=504,
-                detail="Upstream provider timed out",
-            ) from exc
+            yield 'data: {"error": "Upstream provider timed out"}\n\n'
         else:
-            raise
+            err_msg = str(exc).replace('"', '\\"')
+            yield f'data: {{"error": "Internal Error: {err_msg}"}}\n\n'

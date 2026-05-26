@@ -482,6 +482,10 @@
                             if (line.startsWith('data: ') && line !== 'data: [DONE]') {
                                 try {
                                     const parsed = JSON.parse(line.slice(6));
+                                    if (parsed.error) {
+                                        contentDiv.innerHTML = `<p style="color: #ff7b72;">Upstream Error: ${parsed.error}</p>`;
+                                        break;
+                                    }
                                     if (parsed.choices && parsed.choices.length > 0 && parsed.choices[0].delta.content) {
                                         aiContent += parsed.choices[0].delta.content;
                                         contentDiv.innerHTML = marked.parse(aiContent);
