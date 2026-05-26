@@ -47,10 +47,20 @@ def _should_fallback(exc: Exception) -> bool:
     return False
 
 
+import asyncio
+
 async def _complete_with_provider(
     provider: BaseProvider, gateway_request: GatewayChatRequest
 ) -> ChatCompletionResponse:
-    return await provider.complete(gateway_request)
+    retries = 2
+    for attempt in range(retries + 1):
+        try:
+            return await provider.complete(gateway_request)
+        except Exception as exc:
+            if attempt < retries and (isinstance(exc, httpx.TimeoutException) or (isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429)):
+                await asyncio.sleep(2 ** attempt)
+                continue
+            raise
 
 
 async def execute_completion(
