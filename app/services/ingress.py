@@ -22,11 +22,12 @@ def resolve_credentials(request: Request, body: ChatCompletionBody) -> tuple[str
     explicit_provider = (header_provider or body.provider or "").strip().lower()
     
     # Routing
+    routed_provider, routed_model = resolve_route(body.model)
+    
     if explicit_provider:
         provider = explicit_provider
-        model = body.model
+        model = routed_model
     else:
-        routed_provider, routed_model = resolve_route(body.model)
         if not routed_provider:
             raise HTTPException(
                 status_code=400,
