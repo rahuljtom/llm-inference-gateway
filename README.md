@@ -37,6 +37,8 @@ This project is a lightweight inference gateway that normalizes multiple LLM pro
 
 ## Architecture
 
+For an exhaustive, in-depth look at the system's architecture, caching layers, telemetry pipeline, and evolution, please refer to the **[Comprehensive Architecture Overview](docs/architecture.md)**.
+
 ```mermaid
 graph TD
     Client[Client App or SDK] -->|OpenAI-Compatible Request| Gateway[FastAPI Gateway]
