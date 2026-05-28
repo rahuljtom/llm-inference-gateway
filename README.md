@@ -61,7 +61,17 @@ graph TD
 
 ---
 
-## Reliability Lab
+## ⚡ Streaming & Runtime Telemetry
+
+<p align="center">
+  <img src="assets/live-streaming.png" alt="Live Streaming Telemetry" width="850">
+  <br>
+  <em>Live streaming inference execution with real-time latency monitoring and token throughput visualization.</em>
+</p>
+
+---
+
+## 🔬 Reliability Lab
 
 **An OpenAI-compatible LLM Gateway used to study real-world AI infrastructure reliability problems including provider outages, retries, fallback behavior, rate limits, cache performance, latency overhead, and token cost tracking.**
 
