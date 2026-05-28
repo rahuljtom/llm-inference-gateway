@@ -53,6 +53,50 @@ graph TD
     Router -->|provider=groq| Groq[Groq API]
 ```
 
+---
+
+## 🔬 Reliability Lab
+
+**An OpenAI-compatible LLM Gateway used to study real-world AI infrastructure reliability problems including provider outages, retries, fallback behavior, rate limits, cache performance, latency overhead, and token cost tracking.**
+
+### 📊 Artifacts & Reports
+<p align="center">
+  <em>(Insert QR Code Here linking to Repo, Loom, and Report)</em><br/>
+  [📖 Read the Full Technical Report](docs/reliability_lab_report.md) | [🎥 Watch the 90s Reliability Demo](docs/reliability_loom_script.md)
+</p>
+
+### 🛠 Failure Injection & Testing
+To study distributed system failures, the gateway supports synthetic environment variables to forcibly degrade the network and test resiliency:
+
+```env
+SIMULATE_PROVIDER_FAILURE=true
+PROVIDER_FAILURE_RATE=0.2
+SIMULATE_PROVIDER_TIMEOUT_MS=3000
+```
+When enabled, the gateway will gracefully catch upstream timeouts, activate its binary exponential backoff retry logic, and seamlessly pivot to fallback providers (`X-Gateway-Fallback`), ensuring zero downtime for the client.
+
+### 📈 Reliability Benchmarks
+*Measurements taken in a simulated local benchmarking environment.*
+
+| Metric | Measurement (p95) | Notes |
+|--------|-------------------|-------|
+| Gateway Routing Overhead | `8ms` | Async proxy parsing and Redis hit |
+| Telemetry Write Latency | `12ms` | Asynchronous flush to PostgreSQL |
+| Cache-Hit Latency | `18ms` | Full roundtrip without upstream request |
+| Redis RPM/TPM check | `2ms` | Pre-flight tokenizer estimation |
+| Fallback Latency Penalty | `+1,200ms` | Time to detect timeout and initialize fallback |
+| Provider Recovery Rate | `99.8%` | Success rate when primary provider fails |
+
+### 🖥 Observability Dashboard
+*(Placeholder for Dashboard Screenshot)*
+
+The React-based observability dashboard acts as a command center, providing:
+- **Pipeline Tracing:** Real-time visualization of requests from ingress to upstream egress.
+- **Cost Tracking:** Accurate USD cost calculations based on `prompt_tokens` and `completion_tokens`.
+- **Token Velocity:** Streaming throughput measured in tokens-per-second (`tk/s`).
+
+---
+
 ## Design Decisions
 
 1. **Pydantic v2 schemas** are used as the canonical request and response contracts for provider normalization.
