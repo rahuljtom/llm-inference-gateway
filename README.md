@@ -76,7 +76,7 @@ graph TD
 **An OpenAI-compatible LLM Gateway used to study real-world AI infrastructure reliability problems including provider outages, retries, fallback behavior, rate limits, cache performance, latency overhead, and token cost tracking.**
 
 
-### Failure Injection & Testing
+### 🛠 Failure Injection & Testing
 To study distributed system failures, the gateway supports synthetic environment variables to forcibly degrade the network and test resiliency:
 
 ```env
@@ -85,6 +85,12 @@ PROVIDER_FAILURE_RATE=0.2
 SIMULATE_PROVIDER_TIMEOUT_MS=3000
 ```
 When enabled, the gateway will gracefully catch upstream timeouts, activate its binary exponential backoff retry logic, and seamlessly pivot to fallback providers (`X-Gateway-Fallback`), ensuring zero downtime for the client.
+
+<p align="center">
+  <img src="assets/fallback-recovery.png" alt="Fallback Recovery Test" width="850">
+  <br>
+  <em>Failure injection test demonstrating provider timeout handling, retry logic, and automatic fallback recovery.</em>
+</p>
 
 ### Reliability Benchmarks
 *Measurements taken in a simulated local benchmarking environment.*
