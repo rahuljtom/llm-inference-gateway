@@ -4,6 +4,8 @@ OpenAI-compatible LLM gateway with multi-provider routing, streaming normalizati
 
 Built with **FastAPI**, **Redis**, and **PostgreSQL**.
 
+Most LLM applications optimize for model capability; this project focuses on the infrastructure reliability, observability, and operational behavior surrounding inference systems.
+
 ## Demo
 - Live: https://llm-inference-gateway.onrender.com/
 - Walkthrough v1.0 (4 min): https://www.loom.com/share/8916ae03dfa345b683c4e235d31c3eea
@@ -21,7 +23,7 @@ Built with **FastAPI**, **Redis**, and **PostgreSQL**.
 
 ## What This Is
 
-This project is a lightweight inference gateway that normalizes multiple LLM provider APIs into the OpenAI chat completion schema. Clients can switch between OpenAI, Anthropic, and Groq models without changing application code.
+This project is a lightweight inference gateway that normalizes multiple LLM provider APIs into the OpenAI chat completion schema while exposing a centralized infrastructure layer for routing, resiliency, telemetry, and observability. Clients can switch between OpenAI, Anthropic, and Groq models without changing application code.
 
 ### Features
 
@@ -32,7 +34,7 @@ This project is a lightweight inference gateway that normalizes multiple LLM pro
 - Streaming response normalization across providers (OpenAI, Anthropic, Groq) **with accurate token usage tracking**
 - Redis sliding-window **RPM + TPM** rate limiting per gateway API key
 - Exact-match response caching (non-streaming) **with `X-Cache-Hit` header observability**
-- Provider fallback on timeout or upstream failure (optional BYOK fallback credentials)
+- Provider fallback on timeout or upstream failure with exponential backoff retry handling (optional BYOK fallback credentials)
 - PostgreSQL request logging and usage analytics via the `/admin` dashboard **(secured via `ADMIN_API_KEY`)**
 
 ## Architecture
@@ -55,17 +57,13 @@ graph TD
 
 ---
 
-## 🔬 Reliability Lab
+## Reliability Lab
 
 **An OpenAI-compatible LLM Gateway used to study real-world AI infrastructure reliability problems including provider outages, retries, fallback behavior, rate limits, cache performance, latency overhead, and token cost tracking.**
 
-### 📊 Artifacts & Reports
-<p align="center">
-  <em>(Insert QR Code Here linking to Repo, Loom, and Report)</em><br/>
-  [📖 Read the Full Technical Report](docs/reliability_lab_report.md) | [🎥 Watch the 90s Reliability Demo](docs/reliability_loom_script.md)
-</p>
+The Reliability Lab focuses on operational AI infrastructure concerns including request resiliency, upstream failure recovery, latency overhead, rate limiting behavior, and observability under degraded provider conditions.
 
-### 🛠 Failure Injection & Testing
+### Failure Injection & Testing
 To study distributed system failures, the gateway supports synthetic environment variables to forcibly degrade the network and test resiliency:
 
 ```env
@@ -73,10 +71,12 @@ SIMULATE_PROVIDER_FAILURE=true
 PROVIDER_FAILURE_RATE=0.2
 SIMULATE_PROVIDER_TIMEOUT_MS=3000
 ```
-When enabled, the gateway will gracefully catch upstream timeouts, activate its binary exponential backoff retry logic, and seamlessly pivot to fallback providers (`X-Gateway-Fallback`), ensuring zero downtime for the client.
+When enabled, the gateway will gracefully catch upstream timeouts, activate exponential backoff retry logic, and pivot to fallback providers (`X-Gateway-Fallback`) to improve request resiliency during simulated upstream failures.
 
-### 📈 Reliability Benchmarks
-*Measurements taken in a simulated local benchmarking environment.*
+Failure injection is synthetic and intended for local development and reliability experimentation rather than production-grade chaos engineering.
+
+### Reliability Benchmarks
+*Benchmarks collected locally using synthetic concurrent workloads with `oha` against Dockerized FastAPI, Redis, and PostgreSQL services running on Apple Silicon hardware.*
 
 | Metric | Measurement (p95) | Notes |
 |--------|-------------------|-------|
@@ -85,9 +85,23 @@ When enabled, the gateway will gracefully catch upstream timeouts, activate its 
 | Cache-Hit Latency | `18ms` | Full roundtrip without upstream request |
 | Redis RPM/TPM check | `2ms` | Pre-flight tokenizer estimation |
 | Fallback Latency Penalty | `+1,200ms` | Time to detect timeout and initialize fallback |
-| Provider Recovery Rate | `99.8%` | Success rate when primary provider fails |
+| Fallback Recovery Success Rate | `99.8%` | Successful response recovery during simulated primary-provider failure |
 
-### 🖥 Observability Dashboard
+### Failure Recovery Flow
+
+```text
+Primary Provider Timeout
+        ↓
+Retry Logic + Exponential Backoff
+        ↓
+Fallback Provider Routing
+        ↓
+Telemetry + Failure Logging
+        ↓
+Response Returned To Client
+```
+
+### Observability Dashboard
 *(Placeholder for Dashboard Screenshot)*
 
 The React-based observability dashboard acts as a command center, providing:
