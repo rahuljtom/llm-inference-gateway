@@ -41,12 +41,6 @@ This project is a lightweight inference gateway that normalizes multiple LLM pro
 
 For an exhaustive, in-depth look at the system's architecture, caching layers, telemetry pipeline, and evolution, please refer to the **[Comprehensive Architecture Overview](docs/architecture.md)**.
 
-<p align="center">
-  <img src="assets/dashboard-overview.png" alt="Gateway Dashboard Overview" width="850">
-  <br>
-  <em>Gateway observability dashboard showing provider routing, fallback configuration, request telemetry, and live infrastructure health monitoring.</em>
-</p>
-
 ```mermaid
 graph TD
     Client[Client App or SDK] -->|OpenAI-Compatible Request| Gateway[FastAPI Gateway]
@@ -60,18 +54,6 @@ graph TD
     Router -->|provider=anthropic| Anthropic[Anthropic API]
     Router -->|provider=groq| Groq[Groq API]
 ```
-
----
-
-## ⚡ Streaming & Runtime Telemetry
-
-<p align="center">
-  <img src="assets/live-streaming.png" alt="Live Streaming Telemetry" width="850">
-  <br>
-  <em>Live streaming inference execution with real-time latency monitoring and token throughput visualization.</em>
-</p>
-
----
 
 ## Reliability Lab
 
@@ -90,12 +72,6 @@ SIMULATE_PROVIDER_TIMEOUT_MS=3000
 When enabled, the gateway will gracefully catch upstream timeouts, activate exponential backoff retry logic, and pivot to fallback providers (`X-Gateway-Fallback`) to improve request resiliency during simulated upstream failures.
 
 Failure injection is synthetic and intended for local development and reliability experimentation rather than production-grade chaos engineering.
-
-<p align="center">
-  <img src="assets/fallback-recovery.png" alt="Fallback Recovery Test" width="850">
-  <br>
-  <em>Failure injection test demonstrating provider timeout handling, retry logic, and automatic fallback recovery.</em>
-</p>
 
 ### Reliability Benchmarks
 *Benchmarks collected locally using synthetic concurrent workloads with `oha` against Dockerized FastAPI, Redis, and PostgreSQL services running on Apple Silicon hardware.*
