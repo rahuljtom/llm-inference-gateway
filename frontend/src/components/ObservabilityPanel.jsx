@@ -1,11 +1,11 @@
 import { Activity, ArrowRight, ShieldCheck, Cpu } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
-export function ObservabilityPanel({ metrics, activeFlow }) {
-  const FlowNode = ({ label, active, icon: Icon }) => (
+function FlowNode({ label, active, icon: Icon }) {
+  return (
     <div className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-500 overflow-hidden ${
-      active 
-        ? 'border-primary-500/50 bg-primary-500/10 text-primary-400 shadow-[0_0_15px_rgba(59,130,246,0.15)] scale-105' 
+      active
+        ? 'border-primary-500/50 bg-primary-500/10 text-primary-400 shadow-[0_0_15px_rgba(59,130,246,0.15)] scale-105'
         : 'border-white/5 bg-black/40 text-gray-500 scale-100'
     }`}>
       {active && <div className="absolute inset-0 bg-gradient-to-r from-primary-500/0 via-primary-500/10 to-primary-500/0 anim-flow"></div>}
@@ -13,7 +13,9 @@ export function ObservabilityPanel({ metrics, activeFlow }) {
       <span className="text-[10px] font-mono font-bold tracking-widest">{label}</span>
     </div>
   );
+}
 
+export function ObservabilityPanel({ metrics, activeFlow }) {
   return (
     <aside className="w-80 glass-panel border-l border-white/5 flex flex-col overflow-y-auto shrink-0 z-10 h-full relative custom-scrollbar">
       <div className="absolute top-0 left-0 w-[1px] h-full bg-gradient-to-b from-transparent via-purple-500/20 to-transparent"></div>

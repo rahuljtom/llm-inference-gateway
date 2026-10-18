@@ -110,7 +110,7 @@ export default function App() {
                 };
                 return newMsgs;
               });
-            } catch (e) {
+            } catch {
               // Ignore partial JSON
             }
           }

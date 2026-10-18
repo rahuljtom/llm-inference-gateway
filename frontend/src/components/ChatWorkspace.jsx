@@ -1,4 +1,4 @@
-import { Terminal, Send, Activity } from 'lucide-react';
+import { Terminal, Send } from 'lucide-react';
 import { marked } from 'marked';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/atom-one-dark.css';
