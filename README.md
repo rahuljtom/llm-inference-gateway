@@ -1,211 +1,79 @@
 # LLM Inference Gateway
 
-OpenAI-compatible LLM gateway with multi-provider routing, streaming normalization, Redis-backed rate limiting, fallback handling, caching, and usage analytics.
+An OpenAI-compatible gateway for sending chat-completion requests to multiple model providers through one API. The project focuses on the infrastructure around inference: routing, streaming normalization, rate limits, caching, fallbacks, and usage visibility.
 
-Built with **FastAPI**, **Redis**, and **PostgreSQL**.
+**Stack:** FastAPI · Redis · PostgreSQL
 
-Most LLM applications optimize for model capability; this project focuses on the infrastructure reliability, observability, and operational behavior surrounding inference systems.
+[Live demo](https://llm-inference-gateway.onrender.com/) · [4-minute walkthrough](https://www.loom.com/share/8916ae03dfa345b683c4e235d31c3eea) · [Architecture notes](docs/architecture.md)
 
-## Demo
-- Live: https://llm-inference-gateway.onrender.com/
-- Walkthrough v1.0 (4 min): https://www.loom.com/share/8916ae03dfa345b683c4e235d31c3eea
+## What it demonstrates
 
-<p align="center">
-    <a href="https://www.loom.com/share/8916ae03dfa345b683c4e235d31c3eea">
-        <img
-            src="https://cdn.loom.com/sessions/thumbnails/8916ae03dfa345b683c4e235d31c3eea-9001fe14557282fc-full-play.gif#t=0.1"
-            alt="LLM Inference Gateway Demo"
-            width="850"
-        />
-    </a>
-</p>
+- OpenAI-compatible `/v1/chat/completions` endpoint
+- Provider selection for OpenAI, Anthropic, and Groq
+- Streaming responses normalized to the OpenAI SSE format
+- Redis sliding-window request and token limits
+- Exact-match response caching for non-streaming requests
+- Retry and provider fallback handling for timeouts and upstream failures
+- PostgreSQL request logging and usage analytics
+- Synthetic failure injection for local reliability experiments
 
-
-## What This Is
-
-This project is a lightweight inference gateway that normalizes multiple LLM provider APIs into the OpenAI chat completion schema while exposing a centralized infrastructure layer for routing, resiliency, telemetry, and observability. Clients can switch between OpenAI, Anthropic, and Groq models without changing application code.
-
-### Features
-
-- OpenAI-compatible `/v1/chat/completions` API
-- **BYOK**: explicit `provider` + upstream API key (JSON body or `X-Provider` / `X-Provider-Api-Key` headers)
-- **Managed Keys**: gateway can hold provider API keys for zero-config client requests
-- **Auto-Routing**: virtual model aliases (e.g. `fast-chat`) automatically route to the best provider
-- Streaming response normalization across providers (OpenAI, Anthropic, Groq) **with accurate token usage tracking**
-- Redis sliding-window **RPM + TPM** rate limiting per gateway API key
-- Exact-match response caching (non-streaming) **with `X-Cache-Hit` header observability**
-- Provider fallback on timeout or upstream failure with exponential backoff retry handling (optional BYOK fallback credentials)
-- PostgreSQL request logging and usage analytics via the `/admin` dashboard **(secured via `ADMIN_API_KEY`)**
-
-## Architecture
-
-For an exhaustive, in-depth look at the system's architecture, caching layers, telemetry pipeline, and evolution, please refer to the **[Comprehensive Architecture Overview](docs/architecture.md)**.
+## Request flow
 
 ```mermaid
-graph TD
-    Client[Client App or SDK] -->|OpenAI-Compatible Request| Gateway[FastAPI Gateway]
-
-    Gateway -->|Rate Limit and Cache Check| Redis[(Redis)]
-    Gateway -->|Auth and Usage Logging| Postgres[(PostgreSQL)]
-
-    Gateway -->|BYOK provider field| Router{Provider Registry}
-
-    Router -->|provider=openai| OpenAI[OpenAI API]
-    Router -->|provider=anthropic| Anthropic[Anthropic API]
-    Router -->|provider=groq| Groq[Groq API]
+flowchart LR
+    Client --> Gateway[FastAPI gateway]
+    Gateway --> Limits[Redis rate limits and cache]
+    Gateway --> Router[Provider router]
+    Router --> OpenAI
+    Router --> Anthropic
+    Router --> Groq
+    Gateway --> Postgres[(PostgreSQL usage logs)]
 ```
 
-## Reliability Lab
+## Run locally
 
-**An OpenAI-compatible LLM Gateway used to study real-world AI infrastructure reliability problems including provider outages, retries, fallback behavior, rate limits, cache performance, latency overhead, and token cost tracking.**
-
-The Reliability Lab focuses on operational AI infrastructure concerns including request resiliency, upstream failure recovery, latency overhead, rate limiting behavior, and observability under degraded provider conditions.
-
-### Failure Injection & Testing
-To study distributed system failures, the gateway supports synthetic environment variables to forcibly degrade the network and test resiliency:
-
-```env
-SIMULATE_PROVIDER_FAILURE=true
-PROVIDER_FAILURE_RATE=0.2
-SIMULATE_PROVIDER_TIMEOUT_MS=3000
-```
-When enabled, the gateway will gracefully catch upstream timeouts, activate exponential backoff retry logic, and pivot to fallback providers (`X-Gateway-Fallback`) to improve request resiliency during simulated upstream failures.
-
-Failure injection is synthetic and intended for local development and reliability experimentation rather than production-grade chaos engineering.
-
-### Reliability Benchmarks
-*Benchmarks collected locally using synthetic concurrent workloads with `oha` against Dockerized FastAPI, Redis, and PostgreSQL services running on Apple Silicon hardware.*
-
-| Metric | Measurement (p95) | Notes |
-|--------|-------------------|-------|
-| Gateway Routing Overhead | `8ms` | Async proxy parsing and Redis hit |
-| Telemetry Write Latency | `12ms` | Asynchronous flush to PostgreSQL |
-| Cache-Hit Latency | `18ms` | Full roundtrip without upstream request |
-| Redis RPM/TPM check | `2ms` | Pre-flight tokenizer estimation |
-| Fallback Latency Penalty | `+1,200ms` | Time to detect timeout and initialize fallback |
-| Fallback Recovery Success Rate | `99.8%` | Successful response recovery during simulated primary-provider failure |
-
-### Failure Recovery Flow
-
-```text
-Primary Provider Timeout
-        ↓
-Retry Logic + Exponential Backoff
-        ↓
-Fallback Provider Routing
-        ↓
-Telemetry + Failure Logging
-        ↓
-Response Returned To Client
-```
-
-### Observability Dashboard
-*(Placeholder for Dashboard Screenshot)*
-
-The React-based observability dashboard acts as a command center, providing:
-- **Pipeline Tracing:** Real-time visualization of requests from ingress to upstream egress.
-- **Cost Tracking:** Accurate USD cost calculations based on `prompt_tokens` and `completion_tokens`.
-- **Token Velocity:** Streaming throughput measured in tokens-per-second (`tk/s`).
-
----
-
-## Design Decisions
-
-1. **Pydantic v2 schemas** are used as the canonical request and response contracts for provider normalization.
-2. A shared async **httpx** client is initialized during FastAPI lifespan startup to reuse TCP connections under concurrency.
-3. Responses are streamed directly using FastAPI `StreamingResponse` to minimize Time-to-First-Token latency.
-4. Provider integrations implement a shared async interface so routing and fallback logic remain provider-agnostic.
-
-## Quick Start
-
-### 1. Setup
+Requirements: Python, Docker, and Docker Compose.
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 2. Start Infrastructure
-
-```bash
 docker compose up -d
-```
-
-### 3. Run the Gateway
-
-```bash
 uvicorn app.main:app --reload
 ```
 
-## Deploy and benchmarks
+The API is available at `http://localhost:8000`. Interactive API documentation is available at `/docs`.
 
-- **Render (Blueprint):** [`render.yaml`](render.yaml) + [docs/deploy-render.md](docs/deploy-render.md)
-- **Load tests (`oha`):** [scripts/bench.sh](scripts/bench.sh) + [docs/benchmarks.md](docs/benchmarks.md)
+## Authentication and provider keys
 
-## BYOK Credentials
+The sample configuration uses a gateway bearer token (default demo key: `demo-key`). Supply an upstream provider and key either in the JSON request or with `X-Provider` and `X-Provider-Api-Key` headers. Use environment variables for real credentials; never commit API keys.
 
-Every `/v1/chat/completions` request needs upstream provider credentials. Use **either**:
-
-| Method | Fields |
-|--------|--------|
-| **Headers** (SDK-friendly) | `X-Provider`, `X-Provider-Api-Key` |
-| **JSON body** | `provider`, `api_key` |
-
-Headers override body when both are set. Gateway auth is always `Authorization: Bearer <gateway-key>` (default: `demo-key`).
-
-### curl (body)
+Example request:
 
 ```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Authorization: Bearer demo-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "provider": "groq",
-    "api_key": "gsk_YOUR_GROQ_KEY",
-    "model": "llama-3.1-8b-instant",
-    "messages": [{"role": "user", "content": "Hello"}]
-  }'
-```
-
-### curl (headers)
-
-```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
+curl http://localhost:8000/v1/chat/completions \
   -H "Authorization: Bearer demo-key" \
   -H "X-Provider: groq" \
-  -H "X-Provider-Api-Key: gsk_YOUR_GROQ_KEY" \
+  -H "X-Provider-Api-Key: $GROQ_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "llama-3.1-8b-instant",
-    "messages": [{"role": "user", "content": "Hello"}]
-  }'
+  -d '{"model":"llama-3.1-8b-instant","messages":[{"role":"user","content":"Hello"}]}'
 ```
 
-### OpenAI Python SDK (headers)
+## Reliability experiments
 
-```python
-from openai import OpenAI
+The repository includes synthetic provider failure and timeout settings, plus load-test scripts and benchmark notes in `scripts/` and `docs/benchmarks.md`. Measurements are local experiments against a Dockerized stack; they are not production SLOs or guarantees.
 
-client = OpenAI(
-    base_url="http://127.0.0.1:8000/v1",
-    api_key="demo-key",
-    default_headers={
-        "X-Provider": "groq",
-        "X-Provider-Api-Key": "gsk_YOUR_GROQ_KEY",
-    },
-)
+## Design notes
 
-response = client.chat.completions.create(
-    model="llama-3.1-8b-instant",
-    messages=[{"role": "user", "content": "Hello"}],
-)
-```
+- Pydantic v2 models define request and response contracts.
+- A shared async `httpx` client is initialized with the FastAPI lifespan.
+- Streaming responses use FastAPI `StreamingResponse`.
+- Provider adapters share an async interface so routing behavior stays provider-agnostic.
 
-## Tradeoffs and Limitations
+## Scope and tradeoffs
 
-- Caching uses exact-match keys only; semantic similarity search is intentionally out of scope.
-- Streaming is normalized to the OpenAI SSE schema, so some provider-specific metadata is omitted.
-- Fallback prioritizes availability over deterministic output equivalence across models.
-- Rate limiting is single-region Redis-backed and not designed for distributed coordination.
-- Pricing uses static model cost tables and may drift from provider pricing updates.
+- Cache matching is exact; semantic cache behavior is explored separately in [semantic-cache-system](https://github.com/rahuljtom/semantic-cache-system).
+- Streaming follows the OpenAI SSE shape and may omit provider-specific metadata.
+- Fallback can return a different model's output.
+- Rate limiting uses a single Redis deployment and is not a multi-region coordination system.
+- Model pricing comes from static tables and may need updates as providers change pricing.
