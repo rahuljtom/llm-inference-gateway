@@ -65,7 +65,7 @@ export function Sidebar({ config, setConfig }) {
                   <option value="">None</option>
                   <option value="gemini-chat">Gemini (3.8 Flash)</option>
                   <option value="smart-chat">OpenAI (GPT-4o)</option>
-                  <option value="fast-chat">Groq (Llama 3)</option>
+                  <option value="fast-chat">Groq (GPT-OSS 20B)</option>
                 </select>
                 <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-500 group-hover:text-gray-300">
                   <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
