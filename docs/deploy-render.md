@@ -19,10 +19,10 @@ Deploy the gateway as a Render Blueprint: one Python web service, managed Postgr
 
 | Step | Command |
 |------|---------|
-| Build | `pip install -r requirements.txt` |
+| Build | `npm install --prefix frontend && npm run build --prefix frontend && pip install -r requirements.txt` |
 | Start | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
 
-Render sets `$PORT` automatically. Health checks use `GET /health`.
+Render sets `$PORT` automatically. Health checks use `GET /ready`, which confirms both PostgreSQL and Redis are reachable. `GET /health` is a liveness check for the application process only.
 
 ## Environment variables
 
@@ -35,10 +35,11 @@ Set in Blueprint ([`render.yaml`](../render.yaml)) or the Render dashboard:
 | `PROVIDER_TIMEOUT_SECONDS` | `30` | Upstream httpx timeout |
 | `CACHE_ENABLED` | `true` | Exact-match cache (non-streaming) |
 | `CACHE_TTL_SECONDS` | `3600` | Cache TTL in seconds |
-| `ADMIN_API_KEY` | (Optional secret) | Secures the `/admin` dashboard |
+| `ADMIN_API_KEY` | Required secret for admin API use | Protects all `/admin/api/*` reads via `X-Admin-API-Key`; if unset, those endpoints return `503` |
 | `MANAGED_OPENAI_API_KEY` | (Optional secret) | OpenAI key for auto-routed or non-BYOK requests |
 | `MANAGED_ANTHROPIC_API_KEY` | (Optional secret) | Anthropic key for auto-routed or non-BYOK requests |
 | `MANAGED_GROQ_API_KEY` | (Optional secret) | Groq key for auto-routed or non-BYOK requests |
+| `MANAGED_GEMINI_API_KEY` | (Optional secret) | Gemini key for auto-routed or non-BYOK requests |
 
 Note: `OPENAI_API_KEY`, `GROQ_API_KEY`, and `ANTHROPIC_API_KEY` are intentionally prefixed with `MANAGED_` to differentiate gateway-level fallback keys from keys expected by SDKs running locally on the gateway machine.
 
@@ -74,7 +75,7 @@ curl -s -X POST "${BASE_URL}/v1/chat/completions" \
   -d '{"model":"llama-3.1-8b-instant","messages":[{"role":"user","content":"hi"}],"max_tokens":16}'
 ```
 
-Admin UI (unauthenticated in MVP): `GET /admin`, stats at `GET /admin/api/stats`.
+Admin API requests require the configured `ADMIN_API_KEY` header. The React playground shows client-session activity; it does not claim live provider health or persisted admin metrics.
 
 ## External Redis (Upstash)
 

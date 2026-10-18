@@ -1,71 +1,39 @@
-# LLM Gateway Reliability Lab
-**Failure Modes, Fallback Latency, Rate Limits, and Cost Tracking in Multi-Provider LLM APIs**
+# Reliability lab: experiment plan and reporting standard
 
-## Section 1 — The Problem
+This project explores provider failures, retries, fallback, rate limiting, caching, latency, and token-cost estimates. The repository does not currently contain a reproducible run artifact that supports the historical headline numbers previously shown here. Treat those values as unverified until the experiments below are run and their environment and raw output are committed.
 
-Building production-grade AI infrastructure involves significantly more than simply dispatching HTTP requests to a language model. Applications interfacing directly with LLM providers frequently encounter systemic reliability and observability issues:
-- **Provider Outages & Timeout Handling**: Network instability or severe upstream API degradation causes silent application failures if timeouts are not aggressively managed.
-- **429 Rate-Limit Failures**: Without tenant-level quotas or distributed rate limiting, aggressive clients easily trigger global provider `429 Too Many Requests` bans.
-- **Weak Observability & Cost Visibility**: Disparate providers lack a centralized plane for token tracking, making per-tenant or per-model cost attribution nearly impossible.
-- **No Centralized Routing & Poor Fallback**: Applications tightly coupled to a single SDK fail catastrophically when that specific provider drops, lacking the intelligence to seamlessly fail over to secondary models.
+## Questions to answer
 
-## Section 2 — System Architecture
+- What is the added gateway latency for a cache miss, a cache hit, and a fallback request?
+- How does the configured RPM/TPM limit behave under concurrent clients?
+- What share of eligible requests can be served from the exact-match cache?
+- How often does fallback recover a request, and what latency does it add?
+- Does routing or caching reduce estimated spend without unacceptable output-quality changes?
 
-The **LLM Inference Gateway** resolves these operational bottlenecks via a centralized, asynchronous proxy layer:
-- **FastAPI Async Gateway**: High-throughput proxy built on ASGI, minimizing thread-blocking during long-running LLM inferences.
-- **Provider Abstraction Layer**: A unified registry (`BaseProvider`) wrapping OpenAI, Anthropic, Gemini, and Groq into a single, standardized OpenAI-compatible `/v1/chat/completions` API.
-- **Distributed Rate Limiting (Redis)**: Sliding window counters estimating and enforcing both Requests Per Minute (RPM) and Tokens Per Minute (TPM).
-- **PostgreSQL Telemetry & Cost Tracking**: Every request logs precise latency, model execution, token counts, and calculates USD cost dynamically.
-- **Resiliency Engine (Retries & Fallbacks)**: Injects binary exponential backoff for transient 429s and configurable fallback routing for persistent timeouts.
-- **Semantic Caching**: Identical prompts are served directly from Redis, bypassing upstream networks to drop latency to <50ms.
-- **Streaming Normalization**: SSE (Server-Sent Events) normalization across disparate provider schemas, enabling seamless frontend consumption.
-- **React Observability Dashboard**: A premium, glassmorphic UI providing real-time traces of request pipelines, latency charts, and tk/s (tokens per second) velocity metrics.
+## Reproducibility record
 
-## Section 3 — Reliability Measurements
+For each run, record:
 
-*Note: The following metrics were collected in a simulated benchmarking environment to demonstrate gateway overhead and recovery capabilities.*
+- Git commit, machine/container resources, Python/Node versions, and dependency lock state.
+- Provider, model IDs, price-table version/date, timeout, retry policy, fallback policy, and cache TTL.
+- Dataset source, license, prompt count, request settings, and any prompt filtering.
+- Request concurrency, repetitions, warm-up approach, and whether provider/network time is included.
+- Success and failure counts, status codes, p50/p95/p99 latency, cache-hit rate, fallback rate, token counts, and estimated spend.
+- Raw command output and machine-readable results, with credentials removed.
 
-### Baseline Overhead & Caching
-| Metric | Measurement (p95) | Notes |
-|--------|-------------------|-------|
-| Gateway Routing Overhead | `8ms` | Async proxy parsing and Redis hit |
-| Telemetry Write Latency | `12ms` | Asynchronous flush to PostgreSQL |
-| Cache-Hit Latency | `18ms` | Full roundtrip without upstream request |
+## Cost comparison design
 
-### Rate Limits & Resiliency
-| Metric | Measurement | Notes |
-|--------|-------------|-------|
-| Redis RPM/TPM check | `2ms` | Pre-flight tokenizer estimation |
-| Fallback Latency Penalty | `+1,200ms` | Time to detect timeout and initialize fallback provider |
-| Provider Recovery Rate | `99.8%` | Success rate when primary provider fails |
+Replay one fixed, licensed dataset under at least two policies:
 
-### Throughput (Concurrent Load)
-- **100 Concurrent Requests**: `100%` success (routed to Groq).
-- **500 Concurrent Requests**: `100%` success (`22%` triggered local TPM rate limits, returning immediate 429s without upstream bans).
+1. **Baseline:** fixed provider/model, cache disabled.
+2. **Optimized:** documented alias/routing policy and exact cache enabled.
 
-## Section 4 — Failure Injection
+Report spend estimates, request success, latency percentiles, cache-hit rate, and a quality proxy or human-reviewed sample together. Avoid claiming “savings” from lower spend alone if the policies return different-quality outputs. Keep provider prices and model identifiers fixed for the comparison and state their date.
 
-To study distributed system failures, the gateway supports synthetic environment variables to forcibly degrade the network.
+## Failure experiment design
 
-**Configuration:**
-```env
-SIMULATE_PROVIDER_FAILURE=true
-PROVIDER_FAILURE_RATE=0.2
-SIMULATE_PROVIDER_TIMEOUT_MS=3000
-```
+Use synthetic failure injection in a local environment. Vary failure rate and timeout, and send enough requests to produce a meaningful denominator. Report primary attempts, fallback attempts, recovered requests, unrecovered requests, and added latency separately. Synthetic results are not evidence of production provider availability.
 
-**Reliability Analysis (Simulated Run - 1,000 Requests):**
-- **Simulated Failures Injected**: 204
-- **Fallback Triggers Activated**: 204
-- **Successful Fallbacks (Routed to Gemini/Anthropic)**: 204 (100% recovery)
-- **Failed Fallbacks**: 0
-- **Average Fallback Latency Increase**: `+3.1s` (inclusive of the simulated 3000ms timeout)
-- **Impact on Throughput**: The gateway maintained stability. Requests experiencing timeouts blocked asynchronously, meaning no thread starvation occurred. Overall system p50 latency remained stable for non-failing requests.
+## Existing load command
 
-## Section 5 — Key Engineering Learnings
-
-1. **AI Infra is Systems Engineering**: The difficulty of AI is rapidly shifting from prompting to operational resilience. Connection pooling, timeout management, and distributed state are the actual bottlenecks.
-2. **Retries + Resilience**: Blind retries exacerbate rate limits. Using binary exponential backoff is critical for surviving transient `429` errors without causing thundering herds.
-3. **Distributed Rate Limiting is Mandatory**: You must protect your upstream API keys. Estimating token counts pre-flight and enforcing limits locally is the only way to prevent global bans.
-4. **Async Streaming Complexity**: Normalizing Server-Sent Events across providers is non-trivial. Providers chunk data differently, requiring careful buffering and exception handling to prevent dropped tokens.
-5. **Operational Tradeoffs**: Fallbacks inherently increase latency. Deciding *when* to timeout (e.g., waiting 5s for a primary vs. failing fast to a secondary) requires balancing user experience against availability.
+See [benchmarks.md](benchmarks.md) for the `oha` load script and its current sample output. That output is historical and illustrative; it is not a current measurement of the deployed service. Re-run the benchmark before using it in a portfolio claim.
