@@ -2,9 +2,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
-from starlette.responses import StreamingResponse
 from starlette.requests import Request
-from starlette.responses import Response
 
 import app.middleware.logging as logging_middleware
 from app.middleware.logging import LoggingMiddleware
@@ -48,7 +46,7 @@ async def test_cached_response_is_not_charged_to_team_budget(monkeypatch):
     request.state.cached = True
     request.state.cost_usd = 0.0
 
-    await LoggingMiddleware(None)._persist_request(request, 0.0, Response(status_code=200))
+    await LoggingMiddleware(None)._persist_request(request, 0.0, 200)
 
     assert session.items[0].cost_usd == 0.0
     assert finalized == [(None, 11, 0.0)]
@@ -73,7 +71,7 @@ async def test_success_without_usage_charges_reserved_estimate(monkeypatch):
     request.state.budget_reservation_amount = Decimal("0.04")
     request.state.cached = False
 
-    await LoggingMiddleware(None)._persist_request(request, 0.0, Response(status_code=200))
+    await LoggingMiddleware(None)._persist_request(request, 0.0, 200)
 
     assert session.items[0].cost_usd == 0.04
     assert finalized == [("reservation", 11, 0.04)]
@@ -88,20 +86,23 @@ async def test_streaming_request_is_logged_after_body_finishes(monkeypatch):
     request.state.api_key = SimpleNamespace(id=3, team_id=11)
     persisted = []
 
-    async def persist(_request, _start, _response):
+    async def app(_scope, _receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b"data: chunk\n\n", "more_body": False})
+
+    events = []
+    async def send(message):
+        if message["type"] == "http.response.body":
+            events.append("body")
+
+    middleware = LoggingMiddleware(app)
+
+    async def persist_after_body(*_args):
+        events.append("persist")
         persisted.append(True)
 
-    async def call_next(_request):
-        async def body():
-            yield b"data: chunk\n\n"
-        return StreamingResponse(body(), media_type="text/event-stream")
+    monkeypatch.setattr(middleware, "_persist_request", persist_after_body)
+    await middleware(request.scope, request.receive, send)
 
-    middleware = LoggingMiddleware(None)
-    monkeypatch.setattr(middleware, "_persist_request", persist)
-
-    response = await middleware.dispatch(request, call_next)
-    assert persisted == []
-    chunks = [chunk async for chunk in response.body_iterator]
-
-    assert chunks == [b"data: chunk\n\n"]
+    assert events == ["body", "persist"]
     assert persisted == [True]
