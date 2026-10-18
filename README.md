@@ -75,6 +75,20 @@ Set a long random `ADMIN_API_KEY` in the service environment. Admin reads requir
 - `GET /admin/api/metrics` returns per-minute request counts and mean latency for the last hour.
 - `GET /admin/api/requests/live` returns recent request metadata, with no prompt content or credentials.
 - `GET /admin/api/providers` lists supported adapters. It does not perform live provider probes.
+- `GET /admin/api/keys` lists key metadata without returning credential material.
+- `POST /admin/api/keys` creates a key owned by a named team; the raw key is returned once in the creation response.
+- `DELETE /admin/api/keys/{id}` revokes the key while keeping its request history.
+
+Create a team-owned key with per-key request and token limits:
+
+```bash
+curl -X POST http://localhost:8000/admin/api/keys \
+  -H "X-Admin-API-Key: $ADMIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"reporting job","team":"analytics","rpm_limit":30,"tpm_limit":50000}'
+```
+
+The response contains the raw gateway key once. Store it securely; later key listings return metadata only.
 
 Example:
 
@@ -96,7 +110,7 @@ Run [`scripts/bench.sh`](scripts/bench.sh) for gateway load checks, or use [`scr
 ## Known limitations
 
 - Routing uses static aliases; there is no cost/quality policy engine or budget enforcement.
-- Keys are per API key, not grouped by team or organization.
+- Team names can own API keys, but there is no team-level budget enforcement or usage dashboard yet.
 - Cost estimates use a static pricing table and can drift from provider pricing.
 - Cache matching is exact, applies to non-streaming responses, and depends on Redis.
 - Provider status is not probed. Fallback behavior does not promise zero downtime or output equivalence.

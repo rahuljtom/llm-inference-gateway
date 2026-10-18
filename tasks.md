@@ -24,7 +24,7 @@ This checklist tracks delivery of the work in [the implementation plan](docs/imp
 
 ## P3 — Gateway management capabilities
 
-- [ ] Specify team-scoped key ownership, storage, rotation, and revocation behavior.
+- [x] Specify and add team-owned API key creation, listing, and revocation; return raw keys only at creation.
 - [ ] Implement atomic budget accounting and enforcement with documented behavior at and over each budget limit.
 - [ ] Replace fixed aliases with configurable routing policies and explicit cost, latency, and fallback constraints.
 - [ ] Define provider probe, timeout, retry, circuit-open, and recovery behavior before enabling circuit breakers.

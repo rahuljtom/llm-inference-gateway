@@ -3,6 +3,17 @@ from sqlmodel import SQLModel, Field
 from datetime import datetime, timezone
 from sqlalchemy import Column, DateTime
 
+
+class Team(SQLModel, table=True):
+    __tablename__ = "teams"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True, max_length=120)
+    created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True)),
+        default_factory=lambda: datetime.now(timezone.utc),
+    )
+
 class APIKey(SQLModel, table=True):
     __tablename__ = "api_keys"
     
@@ -11,10 +22,14 @@ class APIKey(SQLModel, table=True):
     name: str
     rpm_limit: int = Field(default=60)
     tpm_limit: int = Field(default=100000)
+    team_id: Optional[int] = Field(default=None, foreign_key="teams.id", index=True)
+    revoked_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
     created_at: datetime = Field(
-    sa_column=Column(DateTime(timezone=True)),
-    default_factory=lambda: datetime.now(timezone.utc)
-)
+        sa_column=Column(DateTime(timezone=True)),
+        default_factory=lambda: datetime.now(timezone.utc),
+    )
 
 class RequestLog(SQLModel, table=True):
     __tablename__ = "requests"

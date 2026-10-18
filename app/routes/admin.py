@@ -1,22 +1,39 @@
 """Authenticated, database-backed usage endpoints for the admin dashboard."""
 
 from datetime import datetime, timedelta, timezone
-from secrets import compare_digest
-from typing import Annotated
+from secrets import compare_digest, token_urlsafe
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
+from pydantic import BaseModel, Field, field_validator
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.settings import settings
+from app.core.security import hash_api_key
 from app.db.session import engine
-from app.models.db import RequestLog
+from app.models.db import APIKey, RequestLog, Team
 
 router = APIRouter(prefix="/admin/api", tags=["admin"])
 
 
+class APIKeyCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    team: str = Field(min_length=1, max_length=120)
+    rpm_limit: int = Field(default=60, ge=1, le=100000)
+    tpm_limit: int = Field(default=100000, ge=1, le=100000000)
+
+    @field_validator("name", "team")
+    @classmethod
+    def strip_required_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be blank")
+        return value
+
+
 async def require_admin_key(
-    supplied_key: Annotated[str | None, Header(alias="X-Admin-API-Key")] = None,
+    supplied_key: Annotated[Optional[str], Header(alias="X-Admin-API-Key")] = None,
 ) -> None:
     """Fail closed when the admin secret is absent or does not match."""
     configured_key = settings.ADMIN_API_KEY
@@ -122,3 +139,76 @@ async def get_live_requests():
             for row in logs
         ]
     }
+
+
+@router.get("/keys", dependencies=[Depends(require_admin_key)])
+async def list_api_keys():
+    """List key metadata without exposing any credential material."""
+    async with AsyncSession(engine) as session:
+        rows = (
+            await session.exec(
+                select(APIKey, Team).outerjoin(Team, APIKey.team_id == Team.id)
+                .order_by(APIKey.id)
+            )
+        ).all()
+    return {
+        "keys": [
+            {
+                "id": key.id,
+                "name": key.name,
+                "team": team.name if team else None,
+                "rpmLimit": key.rpm_limit,
+                "tpmLimit": key.tpm_limit,
+                "revoked": key.revoked_at is not None,
+                "createdAt": key.created_at.isoformat(),
+            }
+            for key, team in rows
+        ]
+    }
+
+
+@router.post("/keys", status_code=201, dependencies=[Depends(require_admin_key)])
+async def create_api_key(payload: APIKeyCreate):
+    """Create a team-owned key and return its secret once."""
+    raw_key = f"gw_{token_urlsafe(32)}"
+    team_name = payload.team.casefold()
+    async with AsyncSession(engine) as session:
+        result = await session.exec(select(Team).where(Team.name == team_name))
+        team = result.first()
+        if team is None:
+            team = Team(name=team_name)
+            session.add(team)
+            await session.flush()
+        api_key = APIKey(
+            key_hash=hash_api_key(raw_key),
+            name=payload.name,
+            team_id=team.id,
+            rpm_limit=payload.rpm_limit,
+            tpm_limit=payload.tpm_limit,
+        )
+        session.add(api_key)
+        await session.commit()
+        await session.refresh(api_key)
+    return {
+        "id": api_key.id,
+        "name": api_key.name,
+        "team": team.name,
+        "key": raw_key,
+        "rpmLimit": api_key.rpm_limit,
+        "tpmLimit": api_key.tpm_limit,
+        "createdAt": api_key.created_at.isoformat(),
+    }
+
+
+@router.delete("/keys/{key_id}", status_code=204, dependencies=[Depends(require_admin_key)])
+async def revoke_api_key(key_id: int):
+    """Revoke a key without deleting its request history."""
+    async with AsyncSession(engine) as session:
+        result = await session.exec(select(APIKey).where(APIKey.id == key_id))
+        api_key = result.first()
+        if api_key is None:
+            raise HTTPException(status_code=404, detail="API key not found")
+        if api_key.revoked_at is None:
+            api_key.revoked_at = datetime.now(timezone.utc)
+            await session.commit()
+    return Response(status_code=204)

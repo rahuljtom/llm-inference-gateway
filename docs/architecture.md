@@ -18,7 +18,7 @@ The gateway does not store prompt content in the request log. Provider credentia
 | Provider adapters | Translate requests/responses for OpenAI, Anthropic, Gemini, and Groq | Provider-specific metadata may be lost during normalization |
 | Routing aliases | Map aliases such as `fast-chat` to fixed provider/model pairs | Static mapping, not cost-aware selection |
 | Redis | Sliding-window RPM/TPM limits and exact response cache | One Redis deployment; no cross-region coordination |
-| PostgreSQL | Gateway API keys and request usage records | No organization/team hierarchy or budget ledger |
+| PostgreSQL | Team ownership, gateway API key metadata, and request usage records | Monthly spend budgets are not enforced yet |
 | Admin API | Usage totals, minute buckets, recent request metadata, adapter list | Requires `X-Admin-API-Key`; provider list is not a health probe |
 | React playground | Send sample requests and show browser-session latency | Session telemetry, not a persisted operations dashboard |
 
