@@ -29,6 +29,7 @@ This checklist tracks delivery of the work in [the implementation plan](docs/imp
 - [x] Expose team budget configuration and current-month spend/reservation totals through the admin API.
 - [x] Add configurable route policies with estimated cost/p95 latency limits, candidate timeouts, bounded retries, and ordered 5xx/timeout fallback.
 - [x] Add Redis-backed passive provider circuits with configurable timeout/5xx threshold, cooldown, one half-open recovery request, and documented Redis failure behavior; defer active probes.
+- [x] Add an authenticated team usage dashboard for estimated spend, reservations, active keys, and monthly budget controls.
 - [ ] Measure exact-match cache correctness and savings; evaluate semantic caching only after those results are available.
 
 ## Validation and delivery

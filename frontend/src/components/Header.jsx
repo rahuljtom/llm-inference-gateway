@@ -1,6 +1,6 @@
-import { Activity } from 'lucide-react';
+import { Activity, BarChart3, MessageSquare } from 'lucide-react';
 
-export function Header({ metrics, isStreaming }) {
+export function Header({ metrics, isStreaming, view, setView }) {
   return (
     <header className="h-16 glass-panel border-b border-white/5 flex items-center justify-between px-8 shrink-0 w-full z-20 shadow-sm relative">
       <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary-500/50 to-transparent"></div>
@@ -11,20 +11,34 @@ export function Header({ metrics, isStreaming }) {
             {isStreaming && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>}
             <span className={`relative inline-flex rounded-full h-3 w-3 ${isStreaming ? 'bg-primary-500 shadow-[0_0_8px_#3b82f6]' : 'bg-gray-600'}`}></span>
           </div>
-          <span className="text-[13px] font-semibold tracking-widest text-gray-300 uppercase">Gateway playground</span>
+          <span className="text-[13px] font-semibold tracking-widest text-gray-300 uppercase">
+            {view === 'usage' ? 'Gateway operations' : 'Gateway playground'}
+          </span>
         </div>
       </div>
 
-      <div className="flex items-center gap-8 text-xs font-mono font-medium">
-        <div className="flex items-center gap-2">
-          <Activity size={14} className="text-gray-500" />
-          <span className="text-gray-500">SESSION REQ:</span>
-          <span className="text-gray-200 tabular-nums">{metrics.requestCount.toLocaleString()}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-gray-500">SESSION AVG:</span>
-          <span className="text-primary-400 tabular-nums">{metrics.avgLatency}ms</span>
-        </div>
+      <div className="flex items-center gap-3">
+        <nav aria-label="Gateway views" className="flex items-center gap-1 rounded-lg border border-white/10 bg-black/30 p-1">
+          <button type="button" onClick={() => setView('playground')} aria-current={view === 'playground' ? 'page' : undefined} className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition ${view === 'playground' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-200'}`}>
+            <MessageSquare size={13} /> Playground
+          </button>
+          <button type="button" onClick={() => setView('usage')} aria-current={view === 'usage' ? 'page' : undefined} className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition ${view === 'usage' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-200'}`}>
+            <BarChart3 size={13} /> Team usage
+          </button>
+        </nav>
+        {view === 'playground' && (
+          <div className="hidden items-center gap-6 text-xs font-mono font-medium lg:flex">
+            <div className="flex items-center gap-2">
+              <Activity size={14} className="text-gray-500" />
+              <span className="text-gray-500">SESSION REQ:</span>
+              <span className="text-gray-200 tabular-nums">{metrics.requestCount.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500">SESSION AVG:</span>
+              <span className="text-primary-400 tabular-nums">{metrics.avgLatency}ms</span>
+            </div>
+          </div>
+        )}
       </div>
     </header>
   );

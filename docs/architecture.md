@@ -20,7 +20,7 @@ The gateway does not store prompt content in the request log. Provider credentia
 | Redis | Sliding-window RPM/TPM limits and exact response cache | One Redis deployment; no cross-region coordination |
 | PostgreSQL | Team ownership, gateway API key metadata, request usage, and monthly budget reservations | Spend is estimated from the configured model-price table |
 | Admin API | Usage totals, minute buckets, recent request metadata, adapter list | Requires `X-Admin-API-Key`; provider list is not a health probe |
-| React playground | Send sample requests and show browser-session latency | Session telemetry, not a persisted operations dashboard |
+| React frontend | Send sample requests and inspect team spend, reservations, active keys, and budget limits | Playground telemetry remains session-scoped; team dashboard requires the admin key and reports estimates |
 
 ## Health endpoints
 

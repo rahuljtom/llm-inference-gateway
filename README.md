@@ -19,12 +19,14 @@ Built with FastAPI, Redis, PostgreSQL, and React.
 - Redis sliding-window RPM and estimated TPM limits per gateway API key
 - Exact-match response caching for non-streaming requests; clients can bypass cache reads and writes with `Cache-Control: no-cache`
 - PostgreSQL request logs with model, provider, latency, token, cost-estimate, cache, and fallback fields
-- Authenticated admin API with usage aggregates from the request log table
+- Authenticated team usage dashboard for monthly estimated spend, active reservations, API keys, and budget limits
+- Authenticated admin API with usage aggregates from PostgreSQL request and budget tables
+- Redis-backed provider circuits with a cooldown and half-open recovery request
 - Liveness endpoint at `/health` and dependency readiness endpoint at `/ready`
 
 ## Product direction
 
-Current work adds team-owned keys, estimated monthly budgets, and configurable cost/latency route policies to the existing gateway. The replay tool is ready, but paired provider results still need to be collected. Provider circuit behavior remains future work. Semantic caching stays deferred until exact-match results are measured.
+Current work extends the gateway with team-owned keys, estimated monthly budgets, configurable cost/latency route policies, and provider circuit recovery. The replay tool is ready, but paired provider results still need to be collected. Semantic caching stays deferred until exact-match results are measured.
 
 ## Architecture
 
@@ -138,7 +140,7 @@ Run [`scripts/bench.sh`](scripts/bench.sh) for gateway load checks, or use [`scr
 ## Known limitations
 
 - Route policies use operator-supplied cost and latency estimates; budget decisions use the static model-price table, not provider invoices.
-- There is no frontend team-usage dashboard; administrators can inspect team budgets and current usage through the admin API.
+- The team usage dashboard requires `ADMIN_API_KEY` and displays estimated spend, not provider invoice totals.
 - Cost estimates use a static pricing table and can drift from provider pricing.
 - Cache matching is exact, applies to non-streaming responses, and depends on Redis.
 - Provider status is not probed. Fallback behavior does not promise zero downtime or output equivalence.
