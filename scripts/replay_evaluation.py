@@ -207,6 +207,7 @@ def replay(args: argparse.Namespace) -> dict[str, Any]:
 
     baseline_costs: list[float] = []
     optimized_costs: list[float] = []
+    cache_savings: list[float] = []
     baseline_quality: list[float] = []
     optimized_quality: list[float] = []
     raw_records: list[dict[str, Any]] = []
@@ -226,14 +227,23 @@ def replay(args: argparse.Namespace) -> dict[str, Any]:
         repeat_cost = 0.0 if repeat["cache_hit"] else _cost(
             *repeat_tokens, args.optimized_input_price, args.optimized_output_price
         )
-        baseline_costs.extend([before_cost, before_repeat_cost])
-        optimized_costs.extend([after_cost, repeat_cost])
         before_text = _response_text(before)
         after_text = _response_text(after)
-        if before["ok"] and before_text:
+        if before["ok"] and after["ok"] and before_text and after_text:
             baseline_quality.append(rouge_l_f1(before_text, item["reference"]))
-        if after["ok"] and after_text:
             optimized_quality.append(rouge_l_f1(after_text, item["reference"]))
+        comparable = all(
+            result["ok"] and bool(result.get("body", {}).get("usage"))
+            for result in (before, baseline_repeat, after, repeat)
+        )
+        if comparable:
+            baseline_costs.extend([before_cost, before_repeat_cost])
+            optimized_costs.extend([after_cost, repeat_cost])
+            cache_savings.append(
+                (after_uncached_cost if after["cache_hit"] else 0.0)
+                + (_cost(*repeat_tokens, args.optimized_input_price, args.optimized_output_price)
+                   if repeat["cache_hit"] else 0.0)
+            )
         raw_records.append({
             "id": item["id"],
             "prompt": item["prompt"],
@@ -301,13 +311,10 @@ def replay(args: argparse.Namespace) -> dict[str, Any]:
         "summary": {
             "baseline": _summarize(baseline + baseline_repeats, baseline_quality, baseline_total),
             "optimized": _summarize(optimized + optimized_repeats, optimized_quality, optimized_total),
-            "estimated_savings_usd": baseline_total - optimized_total,
+            "cost_comparisons": len(baseline_costs) // 2,
+            "estimated_savings_usd": baseline_total - optimized_total if baseline_costs else None,
             "estimated_savings_fraction": (baseline_total - optimized_total) / baseline_total if baseline_total else None,
-            "estimated_cache_savings_usd": sum(
-                row["optimized_estimated_cache_savings_usd"]
-                + row["repeat_estimated_cache_savings_usd"]
-                for row in raw_records
-            ),
+            "estimated_cache_savings_usd": sum(cache_savings) if cache_savings else None,
             "optimized_cache_hits": optimized_cache_hits,
             "optimized_cache_hit_ratio": optimized_cache_hits / (len(optimized) + len(optimized_repeats)),
             "quality_delta_rouge_l_f1": (
