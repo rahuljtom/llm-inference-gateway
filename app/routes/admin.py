@@ -249,10 +249,11 @@ async def set_team_budget(team_name: str, payload: TeamBudgetUpdate):
         team = result.first()
         if team is None:
             raise HTTPException(status_code=404, detail="Team not found")
+        resolved_team_name = team.name
         team.budget_monthly_usd = payload.budget_monthly_usd
         await session.commit()
     return {
-        "team": team.name,
+        "team": resolved_team_name,
         "monthlyBudgetUsd": str(team.budget_monthly_usd)
         if team.budget_monthly_usd is not None else None,
         "accounting": "estimated usage at the configured model-price rates",

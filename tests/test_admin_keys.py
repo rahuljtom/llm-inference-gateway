@@ -137,6 +137,9 @@ class FakeQuery:
     def where(self, *_args):
         return self
 
+    def with_for_update(self):
+        return self
+
 
 @pytest.mark.anyio
 async def test_revoke_key_keeps_record_and_sets_revoked_timestamp(monkeypatch):
@@ -167,3 +170,34 @@ async def test_team_budget_update_stores_limit_under_team_lock(monkeypatch):
     assert result["team"] == "analytics"
     assert result["monthlyBudgetUsd"] == "25.00"
     assert session.commits == 1
+
+
+@pytest.mark.anyio
+async def test_team_budget_update_captures_name_before_commit_expiration(monkeypatch):
+    class ExpiringTeam:
+        expire_name_on_commit = True
+
+        def __init__(self):
+            self._name = "analytics"
+            self.id = 12
+            self.expired = False
+            self.budget_monthly_usd = None
+
+        @property
+        def name(self):
+            if self.expired:
+                raise RuntimeError("team name expired after commit")
+            return self._name
+
+    team = ExpiringTeam()
+    session = FakeSession(None)
+    session.result = team
+    monkeypatch.setattr(admin, "AsyncSession", lambda _engine: session)
+    monkeypatch.setattr(admin, "select", lambda *_args: FakeQuery())
+
+    result = await admin.set_team_budget(
+        "Analytics", TeamBudgetUpdate(budget_monthly_usd="25.00")
+    )
+
+    assert result["team"] == "analytics"
+    assert result["monthlyBudgetUsd"] == "25.00"
