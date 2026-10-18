@@ -6,7 +6,6 @@ Built with FastAPI, Redis, PostgreSQL, and React.
 
 ## Demo
 
-- Live app: <https://llm-inference-gateway.onrender.com/> (Render free-tier instances may take time to wake.)
 - Walkthrough: <https://www.loom.com/share/8916ae03dfa345b683c4e235d31c3eea>
 
 ## Current capabilities
