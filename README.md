@@ -24,7 +24,7 @@ Built with FastAPI, Redis, PostgreSQL, and React.
 
 ## Product direction
 
-Planned improvements build on the existing gateway with team-scoped keys, enforceable budgets, cost-aware routing policies, and a replay-based savings report. These capabilities are not implemented yet. Semantic caching is also out of scope until exact-match results are measured.
+Current work adds team-owned keys and estimated monthly budgets to the existing gateway. The replay tool is ready, but paired provider results still need to be collected. Configurable cost/latency routing and provider circuit behavior remain future work. Semantic caching stays deferred until exact-match results are measured.
 
 ## Architecture
 
@@ -78,6 +78,8 @@ Set a long random `ADMIN_API_KEY` in the service environment. Admin reads requir
 - `GET /admin/api/keys` lists key metadata without returning credential material.
 - `POST /admin/api/keys` creates a key owned by a named team; the raw key is returned once in the creation response.
 - `DELETE /admin/api/keys/{id}` revokes the key while keeping its request history.
+- `PUT /admin/api/teams/{team}/budget` sets or disables the team's UTC-month estimated-spend limit.
+- `GET /admin/api/teams/{team}/usage` returns estimated spend, active reservations, and remaining budget.
 
 Create a team-owned key with per-key request and token limits:
 
@@ -89,6 +91,20 @@ curl -X POST http://localhost:8000/admin/api/keys \
 ```
 
 The response contains the raw gateway key once. Store it securely; later key listings return metadata only.
+
+Set a monthly team budget and inspect its current usage:
+
+```bash
+curl -X PUT http://localhost:8000/admin/api/teams/analytics/budget \
+  -H "X-Admin-API-Key: $ADMIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"budget_monthly_usd":"25.00"}'
+
+curl http://localhost:8000/admin/api/teams/analytics/usage \
+  -H "X-Admin-API-Key: $ADMIN_API_KEY"
+```
+
+Budget checks reserve the estimated maximum cost before an upstream request, serialize concurrent requests for the same team, then reconcile the reservation against reported usage. If a successful response omits usage, the held estimate is charged; abandoned holds expire after 15 minutes. If the next request would exceed the limit, the gateway returns `429` with a `Retry-After` until the next UTC month. Requests without an explicit `max_tokens` use a 1024-token completion cap while a team budget is active. Spend is an estimate based on the gateway's static model-price table, not provider billing; keep that table current before using limits for operational controls.
 
 Example:
 
@@ -109,8 +125,8 @@ Run [`scripts/bench.sh`](scripts/bench.sh) for gateway load checks, or use [`scr
 
 ## Known limitations
 
-- Routing uses static aliases; there is no cost/quality policy engine or budget enforcement.
-- Team names can own API keys, but there is no team-level budget enforcement or usage dashboard yet.
+- Routing uses static aliases; there is no cost/quality policy engine. Budget decisions use estimated model prices, not provider invoices.
+- There is no frontend team-usage dashboard; administrators can inspect team budgets and current usage through the admin API.
 - Cost estimates use a static pricing table and can drift from provider pricing.
 - Cache matching is exact, applies to non-streaming responses, and depends on Redis.
 - Provider status is not probed. Fallback behavior does not promise zero downtime or output equivalence.

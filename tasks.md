@@ -25,7 +25,8 @@ This checklist tracks delivery of the work in [the implementation plan](docs/imp
 ## P3 — Gateway management capabilities
 
 - [x] Specify and add team-owned API key creation, listing, and revocation; return raw keys only at creation.
-- [ ] Implement atomic budget accounting and enforcement with documented behavior at and over each budget limit.
+- [x] Implement atomic team-month reservations, usage reconciliation, and `429` behavior when a request would exceed its budget.
+- [x] Expose team budget configuration and current-month spend/reservation totals through the admin API.
 - [ ] Replace fixed aliases with configurable routing policies and explicit cost, latency, and fallback constraints.
 - [ ] Define provider probe, timeout, retry, circuit-open, and recovery behavior before enabling circuit breakers.
 - [ ] Measure exact-match cache correctness and savings; evaluate semantic caching only after those results are available.

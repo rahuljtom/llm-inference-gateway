@@ -18,7 +18,7 @@ The gateway does not store prompt content in the request log. Provider credentia
 | Provider adapters | Translate requests/responses for OpenAI, Anthropic, Gemini, and Groq | Provider-specific metadata may be lost during normalization |
 | Routing aliases | Map aliases such as `fast-chat` to fixed provider/model pairs | Static mapping, not cost-aware selection |
 | Redis | Sliding-window RPM/TPM limits and exact response cache | One Redis deployment; no cross-region coordination |
-| PostgreSQL | Team ownership, gateway API key metadata, and request usage records | Monthly spend budgets are not enforced yet |
+| PostgreSQL | Team ownership, gateway API key metadata, request usage, and monthly budget reservations | Spend is estimated from the configured model-price table |
 | Admin API | Usage totals, minute buckets, recent request metadata, adapter list | Requires `X-Admin-API-Key`; provider list is not a health probe |
 | React playground | Send sample requests and show browser-session latency | Session telemetry, not a persisted operations dashboard |
 
@@ -29,7 +29,7 @@ The gateway does not store prompt content in the request log. Provider credentia
 
 ## Cost accounting
 
-The request logger estimates cost from provider-reported token counts and a static model-price table. This is useful for a prototype report but is not billing-grade accounting: prices may change, token usage may be missing or provider-specific, and the table is not versioned with each request. The current gateway does not enforce spend budgets.
+The request logger estimates cost from provider-reported token counts and a static model-price table. Team budgets reserve a worst-case estimate before upstream calls, then reconcile the hold against reported usage; concurrent requests for the same team serialize on its database row. Requests that would exceed the UTC calendar-month limit receive `429`. If a successful provider response omits usage, the gateway charges the held estimate. This is not billing-grade accounting: prices may change, provider tokenization and usage vary, and the table is not versioned with each request.
 
 ## Reliability behavior
 

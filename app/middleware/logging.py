@@ -11,6 +11,8 @@ from starlette.requests import Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.session import engine
+from app.core.budgets import finalize_budget_reservation
+from app.core.pricing import estimate_cost_usd
 from app.models.db import RequestLog
 
 EXEMPT_PATHS = frozenset({
@@ -39,8 +41,33 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         start = time.perf_counter()
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception:
+            await self._persist_request(request, start, None)
+            raise
+
+        if hasattr(response, "body_iterator"):
+            original_iterator = response.body_iterator
+
+            async def persist_after_stream():
+                try:
+                    async for chunk in original_iterator:
+                        yield chunk
+                finally:
+                    await self._persist_request(request, start, response)
+
+            response.body_iterator = persist_after_stream()
+            return response
+
+        await self._persist_request(request, start, response)
+        return response
+
+    async def _persist_request(self, request: Request, start: float, response) -> None:
         latency_ms = int((time.perf_counter() - start) * 1000)
+        api_key = getattr(request.state, "api_key", None)
+        if api_key is None:
+            return
 
         provider = getattr(request.state, "provider", "unknown")
         model = getattr(request.state, "model", "unknown")
@@ -49,6 +76,12 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         total_tokens = getattr(request.state, "total_tokens", prompt_tokens + completion_tokens)
         cost_usd = getattr(request.state, "cost_usd", 0.0)
         cached = getattr(request.state, "cached", False)
+        reservation_id = getattr(request.state, "budget_reservation_id", None)
+        reservation_amount = getattr(request.state, "budget_reservation_amount", None)
+        if reservation_id and response is not None and response.status_code < 400 and cost_usd <= 0:
+            cost_usd = float(reservation_amount or 0)
+        if cost_usd <= 0 and (prompt_tokens or completion_tokens) and not cached:
+            cost_usd = estimate_cost_usd(model, prompt_tokens, completion_tokens)
         fallback_used = getattr(request.state, "fallback_used", False)
 
         try:
@@ -66,8 +99,12 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                     fallback_used=fallback_used,
                 )
                 session.add(log)
+                await finalize_budget_reservation(
+                    session,
+                    reservation_id,
+                    getattr(api_key, "team_id", None),
+                    cost_usd,
+                )
                 await session.commit()
         except Exception:
             pass
-
-        return response

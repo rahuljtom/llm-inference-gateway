@@ -1,18 +1,21 @@
 """Authenticated, database-backed usage endpoints for the admin dashboard."""
 
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from secrets import compare_digest, token_urlsafe
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.settings import settings
 from app.core.security import hash_api_key
+from app.core.budgets import RESERVATION_TTL, current_period_start
 from app.db.session import engine
-from app.models.db import APIKey, RequestLog, Team
+from app.models.db import APIKey, BudgetReservation, RequestLog, Team, TeamBudgetUsage
 
 router = APIRouter(prefix="/admin/api", tags=["admin"])
 
@@ -29,6 +32,22 @@ class APIKeyCreate(BaseModel):
         value = value.strip()
         if not value:
             raise ValueError("must not be blank")
+        return value
+
+
+class TeamBudgetUpdate(BaseModel):
+    budget_monthly_usd: Optional[Decimal] = Field(
+        ..., ge=0
+    )
+
+    @field_validator("budget_monthly_usd")
+    @classmethod
+    def validate_budget_precision(cls, value: Optional[Decimal]) -> Optional[Decimal]:
+        if value is not None and (
+            value > Decimal("999999.999999")
+            or value != value.quantize(Decimal("0.000001"))
+        ):
+            raise ValueError("budget must fit NUMERIC(12, 6)")
         return value
 
 
@@ -157,6 +176,10 @@ async def list_api_keys():
                 "id": key.id,
                 "name": key.name,
                 "team": team.name if team else None,
+                "teamMonthlyBudgetUsd": (
+                    str(team.budget_monthly_usd)
+                    if team and team.budget_monthly_usd is not None else None
+                ),
                 "rpmLimit": key.rpm_limit,
                 "tpmLimit": key.tpm_limit,
                 "revoked": key.revoked_at is not None,
@@ -212,3 +235,64 @@ async def revoke_api_key(key_id: int):
             api_key.revoked_at = datetime.now(timezone.utc)
             await session.commit()
     return Response(status_code=204)
+
+
+@router.put("/teams/{team_name}/budget", dependencies=[Depends(require_admin_key)])
+async def set_team_budget(team_name: str, payload: TeamBudgetUpdate):
+    """Set or disable a team's monthly estimated-spend limit."""
+    normalized_name = team_name.strip().casefold()
+    async with AsyncSession(engine) as session:
+        result = await session.exec(
+            select(Team).where(Team.name == normalized_name).with_for_update()
+        )
+        team = result.first()
+        if team is None:
+            raise HTTPException(status_code=404, detail="Team not found")
+        team.budget_monthly_usd = payload.budget_monthly_usd
+        await session.commit()
+    return {
+        "team": team.name,
+        "monthlyBudgetUsd": str(team.budget_monthly_usd)
+        if team.budget_monthly_usd is not None else None,
+        "accounting": "estimated usage at the configured model-price rates",
+        "period": "UTC calendar month",
+    }
+
+
+@router.get("/teams/{team_name}/usage", dependencies=[Depends(require_admin_key)])
+async def get_team_budget_usage(team_name: str):
+    """Return the current UTC-month spend estimate and the configured limit."""
+    period_start = current_period_start()
+    async with AsyncSession(engine) as session:
+        team_result = await session.exec(
+            select(Team).where(Team.name == team_name.strip().casefold())
+        )
+        team = team_result.first()
+        if team is None:
+            raise HTTPException(status_code=404, detail="Team not found")
+        usage_result = await session.exec(
+            select(TeamBudgetUsage).where(
+                TeamBudgetUsage.team_id == team.id,
+                TeamBudgetUsage.period_start == period_start,
+            )
+        )
+        usage = usage_result.first()
+        reservation_result = await session.exec(
+            select(func.coalesce(func.sum(BudgetReservation.reserved_usd), 0)).where(
+                BudgetReservation.team_id == team.id,
+                BudgetReservation.period_start == period_start,
+                BudgetReservation.created_at >= datetime.now(timezone.utc) - RESERVATION_TTL,
+            )
+        )
+        reserved = Decimal(str(reservation_result.first() or 0))
+    spent = Decimal(str(usage.spent_usd or 0)) if usage else Decimal("0")
+    limit = Decimal(str(team.budget_monthly_usd)) if team.budget_monthly_usd is not None else None
+    return {
+        "team": team.name,
+        "period": period_start.isoformat(),
+        "spentUsd": str(spent),
+        "reservedUsd": str(reserved),
+        "budgetUsd": str(limit) if limit is not None else None,
+        "remainingUsd": str(max(Decimal("0"), limit - spent - reserved)) if limit is not None else None,
+        "accounting": "estimated usage at the configured model-price rates",
+    }

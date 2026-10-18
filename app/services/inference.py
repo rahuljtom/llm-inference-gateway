@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import AsyncGenerator, Optional
 
 import httpx
@@ -7,6 +8,7 @@ from fastapi import HTTPException, Request
 from pydantic import SecretStr
 
 from app.core.cache import build_cache_key, get_cached_response, set_cached_response
+from app.core.budgets import BudgetExceeded, reserve_team_budget
 from app.core.usage import set_request_usage, usage_from_response
 from app.models.chat import ChatCompletionBody, ChatCompletionResponse, GatewayChatRequest
 from app.providers.base import BaseProvider
@@ -16,6 +18,60 @@ from app.providers.registry import resolve_provider
 @dataclass
 class FallbackConfig:
     gateway_request: GatewayChatRequest
+
+
+async def _reserve_budget(
+    request: Request,
+    gateway_request: GatewayChatRequest,
+    fallback: Optional[FallbackConfig],
+) -> None:
+    api_key = getattr(request.state, "api_key", None)
+    if api_key is None:
+        return
+    fallback_models = [fallback.gateway_request.model] if fallback else []
+    try:
+        reservation_id, reservation_amount = await reserve_team_budget(
+            api_key_id=api_key.id,
+            team_id=getattr(api_key, "team_id", None),
+            gateway_request=gateway_request,
+            fallback_models=fallback_models,
+        )
+    except BudgetExceeded as exc:
+        now = datetime.now(timezone.utc)
+        next_month = (
+            datetime(now.year + 1, 1, 1, tzinfo=timezone.utc)
+            if now.month == 12
+            else datetime(now.year, now.month + 1, 1, tzinfo=timezone.utc)
+        )
+        retry_after = max(1, int((next_month - now).total_seconds()))
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "monthly_budget_exceeded",
+                "message": "The team's monthly estimated-spend limit would be exceeded.",
+                "limitUsd": str(exc.limit),
+                "spentUsd": str(exc.spent),
+                "reservedUsd": str(exc.reserved),
+                "requestedUsd": str(exc.requested),
+                "period": "UTC calendar month",
+            },
+            headers={"Retry-After": str(retry_after)},
+        )
+    request.state.budget_reservation_id = reservation_id
+    request.state.budget_reservation_amount = reservation_amount
+
+
+def _set_completion_usage(request: Request, gateway_request: GatewayChatRequest, response: ChatCompletionResponse) -> None:
+    usage = usage_from_response(response)
+    set_request_usage(request.state, model=gateway_request.model, usage=usage)
+    request.state.provider = gateway_request.provider
+    request.state.model = gateway_request.model
+    if (
+        usage["prompt_tokens"] == 0
+        and usage["completion_tokens"] == 0
+        and getattr(request.state, "budget_reservation_amount", None) is not None
+    ):
+        request.state.cost_usd = float(request.state.budget_reservation_amount)
 
 
 def _resolve_fallback(
@@ -84,7 +140,10 @@ async def execute_completion(
             request.state.cached = True
             response = ChatCompletionResponse(**cached)
             set_request_usage(request.state, model=gateway_request.model, usage=usage_from_response(response))
+            request.state.cost_usd = 0.0
             return response
+
+    await _reserve_budget(request, gateway_request, fallback)
 
     provider = resolve_provider(
         gateway_request.provider,
@@ -92,6 +151,7 @@ async def execute_completion(
         gateway_request.api_key.get_secret_value(),
     )
 
+    effective_request = gateway_request
     try:
         response = await _complete_with_provider(provider, gateway_request)
     except Exception as exc:
@@ -102,6 +162,7 @@ async def execute_completion(
                 request.app.state.http_client,
                 fallback.gateway_request.api_key.get_secret_value(),
             )
+            effective_request = fallback.gateway_request
             response = await _complete_with_provider(fb_provider, fallback.gateway_request)
         elif isinstance(exc, httpx.HTTPStatusError):
             raise HTTPException(
@@ -116,11 +177,7 @@ async def execute_completion(
         else:
             raise
 
-    set_request_usage(
-        request.state,
-        model=gateway_request.model,
-        usage=usage_from_response(response),
-    )
+    _set_completion_usage(request, effective_request, response)
 
     if cache_key and not cache_bypassed:
         await set_cached_response(cache_key, response.model_dump(mode="json"))
@@ -132,7 +189,11 @@ async def execute_stream(
     request: Request,
     gateway_request: GatewayChatRequest,
     fallback: Optional[FallbackConfig],
+    *,
+    budget_reserved: bool = False,
 ) -> AsyncGenerator[str, None]:
+    if not budget_reserved:
+        await _reserve_budget(request, gateway_request, fallback)
     provider = resolve_provider(
         gateway_request.provider,
         request.app.state.http_client,
@@ -141,6 +202,12 @@ async def execute_stream(
 
     async def _stream_from(prov: BaseProvider, req: GatewayChatRequest) -> AsyncGenerator[str, None]:
         chars_yielded = 0
+        request.state.prompt_tokens = 0
+        request.state.completion_tokens = 0
+        request.state.total_tokens = 0
+        request.state.cost_usd = 0.0
+        request.state.provider = req.provider
+        request.state.model = req.model
         async for chunk in prov.stream(req):
             if chunk.startswith("data: ") and chunk != "data: [DONE]\n\n":
                 try:
@@ -161,7 +228,25 @@ async def execute_stream(
                 if not getattr(request.state, "total_tokens", 0):
                     comp_tokens = max(1, chars_yielded // 4)
                     request.state.completion_tokens = comp_tokens
-                    request.state.total_tokens = comp_tokens
+                    request.state.prompt_tokens = max(
+                        1,
+                        sum(len(message.content.encode("utf-8")) for message in req.messages),
+                    )
+                    request.state.total_tokens = request.state.prompt_tokens + comp_tokens
+                    set_request_usage(
+                        request.state,
+                        model=req.model,
+                        usage={
+                            "prompt_tokens": request.state.prompt_tokens,
+                            "completion_tokens": comp_tokens,
+                            "total_tokens": request.state.total_tokens,
+                        },
+                    )
+                if (
+                    getattr(request.state, "total_tokens", 0) == 0
+                    and getattr(request.state, "budget_reservation_amount", None) is not None
+                ):
+                    request.state.cost_usd = float(request.state.budget_reservation_amount)
             yield chunk
 
     try:

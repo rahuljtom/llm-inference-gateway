@@ -21,6 +21,9 @@ async def init_db() -> None:
         await conn.execute(text(
             "ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMP WITH TIME ZONE"
         ))
+        await conn.execute(text(
+            "ALTER TABLE teams ADD COLUMN IF NOT EXISTS budget_monthly_usd NUMERIC(12, 6)"
+        ))
 
 
 async def seed_demo_api_key() -> None:

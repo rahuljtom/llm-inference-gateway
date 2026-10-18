@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 from app.models.chat import ChatCompletionBody
 from app.services.inference import (
     _resolve_fallback,
+    _reserve_budget,
     execute_completion,
     execute_stream,
 )
@@ -23,8 +24,9 @@ async def chat_completions(body: ChatCompletionBody, request: Request, response:
     request.state.fallback_used = False
 
     if gateway_request.stream:
+        await _reserve_budget(request, gateway_request, fallback)
         return StreamingResponse(
-            execute_stream(request, gateway_request, fallback),
+            execute_stream(request, gateway_request, fallback, budget_reserved=True),
             media_type="text/event-stream",
             headers={"X-Cache-Hit": "MISS"},
         )

@@ -1,10 +1,12 @@
+from decimal import Decimal
+
 import pytest
 from pydantic import ValidationError
 
 from app.core.security import hash_api_key
 import app.routes.admin as admin
 from app.models.db import APIKey, Team
-from app.routes.admin import APIKeyCreate
+from app.routes.admin import APIKeyCreate, TeamBudgetUpdate
 
 
 def test_api_key_payload_trims_name_and_team():
@@ -33,6 +35,14 @@ def test_gateway_key_hash_does_not_contain_raw_secret():
     assert digest != secret
     assert len(digest) == 64
     assert secret not in digest
+
+
+def test_team_budget_payload_accepts_disable_and_validates_precision():
+    assert TeamBudgetUpdate(budget_monthly_usd=None).budget_monthly_usd is None
+    assert TeamBudgetUpdate(budget_monthly_usd="12.345678").budget_monthly_usd == Decimal("12.345678")
+    for value in ("-1", "1000000", "1.0000001"):
+        with pytest.raises(ValidationError):
+            TeamBudgetUpdate(budget_monthly_usd=value)
 
 
 class FakeResult:
@@ -105,4 +115,21 @@ async def test_revoke_key_keeps_record_and_sets_revoked_timestamp(monkeypatch):
 
     assert response.status_code == 204
     assert key.revoked_at is not None
+    assert session.commits == 1
+
+
+@pytest.mark.anyio
+async def test_team_budget_update_stores_limit_under_team_lock(monkeypatch):
+    team = Team(id=12, name="analytics")
+    session = FakeSession(None)
+    session.result = team
+    monkeypatch.setattr(admin, "AsyncSession", lambda _engine: session)
+
+    result = await admin.set_team_budget(
+        "Analytics", TeamBudgetUpdate(budget_monthly_usd="25.00")
+    )
+
+    assert team.budget_monthly_usd == Decimal("25.00")
+    assert result["team"] == "analytics"
+    assert result["monthlyBudgetUsd"] == "25.00"
     assert session.commits == 1
