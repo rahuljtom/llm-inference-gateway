@@ -4,7 +4,7 @@ An OpenAI-compatible gateway for sending chat-completion requests to multiple mo
 
 **Stack:** FastAPI · Redis · PostgreSQL
 
-[Live demo](https://llm-inference-gateway.onrender.com/) · [4-minute walkthrough](https://www.loom.com/share/8916ae03dfa345b683c4e235d31c3eea) · [Architecture notes](docs/architecture.md)
+[4-minute walkthrough](https://www.loom.com/share/8916ae03dfa345b683c4e235d31c3eea) · [Architecture notes](docs/architecture.md)
 
 ## What it demonstrates
 
