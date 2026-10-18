@@ -83,6 +83,9 @@ class FakeSession:
 
     async def commit(self):
         self.commits += 1
+        for item in self.items:
+            if getattr(item, "expire_name_on_commit", False):
+                item.expired = True
 
     async def refresh(self, _item):
         return None
@@ -102,6 +105,37 @@ async def test_create_key_returns_secret_once_and_persists_only_hash(monkeypatch
     assert result["key"] != key.key_hash
     assert key.team_id == team.id == 12
     assert result["team"] == "analytics"
+
+
+@pytest.mark.anyio
+async def test_create_key_captures_team_name_before_commit_expiration(monkeypatch):
+    class ExpiringTeam:
+        expire_name_on_commit = True
+
+        def __init__(self, name):
+            self._name = name
+            self.id = 12
+            self.expired = False
+
+        @property
+        def name(self):
+            if self.expired:
+                raise RuntimeError("team name expired after commit")
+            return self._name
+
+    session = FakeSession(None)
+    monkeypatch.setattr(admin, "Team", ExpiringTeam)
+    monkeypatch.setattr(admin, "AsyncSession", lambda _engine: session)
+    monkeypatch.setattr(admin, "select", lambda *_args: FakeQuery())
+
+    result = await admin.create_api_key(APIKeyCreate(name="batch job", team="Analytics"))
+
+    assert result["team"] == "analytics"
+
+
+class FakeQuery:
+    def where(self, *_args):
+        return self
 
 
 @pytest.mark.anyio

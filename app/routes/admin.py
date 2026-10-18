@@ -202,6 +202,7 @@ async def create_api_key(payload: APIKeyCreate):
             team = Team(name=team_name)
             session.add(team)
             await session.flush()
+        resolved_team_name = team.name
         api_key = APIKey(
             key_hash=hash_api_key(raw_key),
             name=payload.name,
@@ -215,7 +216,7 @@ async def create_api_key(payload: APIKeyCreate):
     return {
         "id": api_key.id,
         "name": api_key.name,
-        "team": team.name,
+        "team": resolved_team_name,
         "key": raw_key,
         "rpmLimit": api_key.rpm_limit,
         "tpmLimit": api_key.tpm_limit,
