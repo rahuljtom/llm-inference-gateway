@@ -43,6 +43,8 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 4. Ensure the test suite passes (run `pytest`).
 5. Make sure your code adheres to standard Python formatting (`black` / `ruff`).
 
+The optional live-provider smoke check is separate from the unit suite. Start the gateway and configure a usable provider key before running `python scripts/smoke_groq.py`.
+
 ## Setting Up for Local Development
 
 1. **Clone the repository:**

@@ -22,6 +22,7 @@ This plan puts the current repository in a trustworthy state before expanding it
 
 - [x] Add Docker build-context exclusions for local environments, caches, and frontend dependencies.
 - [x] Build the frontend production assets and check in the generated assets served by the app.
+- [x] Move the live-provider smoke check out of pytest discovery so CI only runs deterministic tests.
 
 ## P2 — Demonstrate the cost claim
 
