@@ -9,6 +9,11 @@ from pydantic import SecretStr
 
 from app.core.cache import build_cache_key, get_cached_response, set_cached_response
 from app.core.budgets import BudgetExceeded, reserve_team_budget
+from app.services.circuit_breaker import (
+    allow_provider_request,
+    record_provider_failure,
+    record_provider_success,
+)
 from app.core.usage import set_request_usage, usage_from_response
 from app.models.chat import ChatCompletionBody, ChatCompletionResponse, GatewayChatRequest
 from app.providers.base import BaseProvider
@@ -23,6 +28,10 @@ class FallbackConfig:
     @property
     def candidates(self) -> list[GatewayChatRequest]:
         return [self.gateway_request, *self.alternatives]
+
+
+class CircuitOpenError(Exception):
+    """Raised when a provider is temporarily excluded by its circuit breaker."""
 
 
 async def _reserve_budget(
@@ -109,11 +118,24 @@ def _resolve_fallback(
 
 
 def _should_fallback(exc: Exception) -> bool:
+    if isinstance(exc, CircuitOpenError):
+        return True
     if isinstance(exc, httpx.TimeoutException):
         return True
     if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code >= 500
     return False
+
+
+async def _record_circuit_outcome(provider: str, exc: Exception) -> None:
+    if isinstance(exc, httpx.TimeoutException) or (
+        isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code >= 500
+    ):
+        await record_provider_failure(provider)
+    else:
+        # A 4xx or another non-transient outcome proves the provider responded;
+        # this also releases a half-open probe instead of leaving it stuck.
+        await record_provider_success(provider)
 
 
 import asyncio
@@ -166,13 +188,20 @@ async def execute_completion(
 
     effective_request = gateway_request
     try:
+        if not await allow_provider_request(gateway_request.provider):
+            raise CircuitOpenError(f"Circuit open for {gateway_request.provider}")
         response = await _complete_with_provider(provider, gateway_request)
+        await record_provider_success(gateway_request.provider)
     except Exception as exc:
+        await _record_circuit_outcome(gateway_request.provider, exc)
         last_error = exc
         response = None
         if fallback and _should_fallback(exc):
             request.state.fallback_used = True
             for fallback_request in fallback.candidates:
+                if not await allow_provider_request(fallback_request.provider):
+                    last_error = CircuitOpenError(f"Circuit open for {fallback_request.provider}")
+                    continue
                 fb_provider = resolve_provider(
                     fallback_request.provider,
                     request.app.state.http_client,
@@ -180,12 +209,16 @@ async def execute_completion(
                 )
                 try:
                     response = await _complete_with_provider(fb_provider, fallback_request)
+                    await record_provider_success(fallback_request.provider)
                     effective_request = fallback_request
                     break
                 except Exception as fallback_error:
+                    await _record_circuit_outcome(fallback_request.provider, fallback_error)
                     last_error = fallback_error
                     if not _should_fallback(fallback_error):
                         break
+        if response is None and isinstance(last_error, CircuitOpenError):
+            raise HTTPException(status_code=503, detail="No healthy upstream provider is available") from last_error
         if response is None and isinstance(last_error, httpx.HTTPStatusError):
             raise HTTPException(
                 status_code=last_error.response.status_code,
@@ -272,13 +305,20 @@ async def execute_stream(
             yield chunk
 
     try:
+        if not await allow_provider_request(gateway_request.provider):
+            raise CircuitOpenError(f"Circuit open for {gateway_request.provider}")
         async for chunk in _stream_from(provider, gateway_request):
             yield chunk
+        await record_provider_success(gateway_request.provider)
     except Exception as exc:
+        await _record_circuit_outcome(gateway_request.provider, exc)
         if fallback and _should_fallback(exc):
             request.state.fallback_used = True
             last_error = exc
             for fallback_request in fallback.candidates:
+                if not await allow_provider_request(fallback_request.provider):
+                    last_error = CircuitOpenError(f"Circuit open for {fallback_request.provider}")
+                    continue
                 fb_provider = resolve_provider(
                     fallback_request.provider,
                     request.app.state.http_client,
@@ -287,13 +327,20 @@ async def execute_stream(
                 try:
                     async for chunk in _stream_from(fb_provider, fallback_request):
                         yield chunk
+                    await record_provider_success(fallback_request.provider)
                     return
                 except Exception as fb_exc:
+                    await _record_circuit_outcome(fallback_request.provider, fb_exc)
                     last_error = fb_exc
                     if not _should_fallback(fb_exc):
                         break
+            if isinstance(last_error, CircuitOpenError):
+                yield 'data: {"error": "No healthy upstream provider is available"}\n\n'
+                return
             err_msg = str(last_error).replace('"', '\\"')
             yield f'data: {{"error": "Fallback failed: {err_msg}"}}\n\n'
+        elif isinstance(exc, CircuitOpenError):
+            yield 'data: {"error": "No healthy upstream provider is available"}\n\n'
         elif isinstance(exc, httpx.HTTPStatusError):
             try:
                 detail = exc.response.json().get('error', {}).get('message', 'Upstream provider error')

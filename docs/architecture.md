@@ -16,7 +16,7 @@ The gateway does not store prompt content in the request log. Provider credentia
 |---|---|---|
 | FastAPI | OpenAI-compatible HTTP endpoint and streaming response | Chat completions only |
 | Provider adapters | Translate requests/responses for OpenAI, Anthropic, Gemini, and Groq | Provider-specific metadata may be lost during normalization |
-| Route policies | Select candidates by configured cost or expected p95 latency limits; use later eligible candidates as fallback | Estimates are operator-supplied; missing managed keys skip a candidate |
+| Route policies and circuit breaker | Select candidates by configured cost or expected p95 latency limits; use later eligible candidates as fallback and skip open provider circuits | Estimates are operator-supplied; breaker state uses Redis and fails open if Redis is unavailable |
 | Redis | Sliding-window RPM/TPM limits and exact response cache | One Redis deployment; no cross-region coordination |
 | PostgreSQL | Team ownership, gateway API key metadata, request usage, and monthly budget reservations | Spend is estimated from the configured model-price table |
 | Admin API | Usage totals, minute buckets, recent request metadata, adapter list | Requires `X-Admin-API-Key`; provider list is not a health probe |
@@ -33,10 +33,9 @@ The request logger estimates cost from provider-reported token counts and a stat
 
 ## Reliability behavior
 
-Configured route policies filter candidates by operator-supplied estimated cost and expected p95 latency. Non-streaming requests retry timeouts and 429 responses within the configured retry limit; eligible later candidates are tried after timeouts and 5xx responses. Streaming requests use the configured timeout and can fail over on timeout/5xx without retries. These controls improve the chance of returning a response but do not guarantee zero downtime or equivalent output. Provider health probes and circuit breakers are not implemented. Report failure rates and latency only with the workload, provider, timeout/retry policy, and run artifact attached.
+Configured route policies filter candidates by operator-supplied estimated cost and expected p95 latency. Non-streaming requests retry timeouts and 429 responses within the configured retry limit; eligible later candidates are tried after timeouts and 5xx responses. Streaming requests use the configured timeout and can fail over on timeout/5xx without retries. A Redis-backed passive circuit opens after consecutive timeouts/5xx, skips the provider during its cooldown, then permits one half-open request; a successful or other non-transient outcome closes it. Redis errors fail open. These controls improve the chance of returning a response but do not guarantee zero downtime or equivalent output. Report failure rates and latency only with the workload, provider, timeout/retry policy, and run artifact attached.
 
 ## Next architecture steps
 
 1. Version provider price data and retain the price version used for every estimate.
-2. Add provider health probes and circuit breakers with defined recovery behavior.
-3. Evaluate semantic caching only after exact cache behavior and savings are measured.
+2. Evaluate semantic caching only after exact cache behavior and savings are measured.

@@ -5,7 +5,7 @@ from pydantic import SecretStr
 from unittest.mock import patch
 
 from app.models.chat import ChatCompletionBody, GatewayChatRequest, ChatMessage
-from app.services.inference import execute_completion, FallbackConfig
+from app.services.inference import execute_completion, execute_stream, FallbackConfig
 from app.services.inference import _complete_with_provider
 
 
@@ -201,3 +201,26 @@ async def test_route_retry_limit_controls_429_attempts(monkeypatch):
 
     assert provider.attempts == 2
     assert sleeps == [1]
+
+
+@pytest.mark.anyio
+async def test_stream_returns_clear_error_when_circuit_is_open(monkeypatch):
+    import app.services.inference as inference
+
+    monkeypatch.setattr(inference, "allow_provider_request", lambda _provider: _async_value(False))
+    gateway_request = GatewayChatRequest(
+        provider="openai", model="unavailable", api_key=SecretStr("key"),
+        messages=[ChatMessage(role="user", content="hello")], stream=True,
+    )
+    app = type("App", (), {"state": type("AppState", (), {"http_client": None})()})()
+    request = Request({"type": "http", "headers": [], "state": {}, "app": app})
+    chunks = [
+        chunk async for chunk in execute_stream(
+            request, gateway_request, None, budget_reserved=True
+        )
+    ]
+    assert chunks == ['data: {"error": "No healthy upstream provider is available"}\n\n']
+
+
+async def _async_value(value):
+    return value

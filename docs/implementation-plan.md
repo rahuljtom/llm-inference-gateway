@@ -34,7 +34,7 @@ This plan strengthens the existing gateway and adds measurable reliability and u
 
 - [x] Add team-scoped key creation, listing, revocation, and atomic estimated-budget enforcement with explicit over-budget behavior.
 - [x] Replace static aliases as the only option with configurable route policies using cost, latency, and fallback constraints.
-- [ ] Add provider health probes and circuit-breaker behavior only with clear timeout, retry, and recovery rules.
+- [x] Add a Redis-backed passive provider circuit with timeout/5xx thresholds, cooldown, single half-open recovery request, and fail-open Redis behavior. Active health probes remain deferred.
 - [ ] Consider semantic caching after exact-match cache correctness and savings are measured.
 
 ## Current limits

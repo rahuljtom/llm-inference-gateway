@@ -60,11 +60,13 @@ The dashboard playground uses the demo gateway key seeded on startup. Each compl
 
 Set `ROUTING_POLICIES_JSON` to define candidate models, the cost or latency selection strategy, eligibility limits, per-candidate timeout, and bounded retries. The `estimated_cost_per_1k_tokens_usd` and `expected_p95_latency_ms` values are operator-supplied estimates and should come from dated price sources and measurements. Candidates without a configured managed provider key are skipped. Eligible candidates after the selected route are used as fallbacks on provider timeouts and 5xx responses. Non-streaming calls apply the configured retry count for timeouts and 429 responses; streaming calls use the candidate timeout and fail over on timeouts/5xx without retries.
 
+Provider circuits are shared in Redis and keyed per provider. `CIRCUIT_BREAKER_FAILURE_THRESHOLD` (default `5`) opens a circuit after consecutive timeouts or 5xx responses; `CIRCUIT_BREAKER_COOLDOWN_SECONDS` (default `30`) controls when one half-open request may probe recovery. A successful or other non-transient outcome closes the circuit, while another timeout/5xx reopens it. Open providers are skipped while route fallbacks are considered. Redis errors fail open and allow provider traffic. The breaker is passive: it does not send separate health probes.
+
 ```bash
 export ROUTING_POLICIES_JSON='{"budget-chat":{"strategy":"lowest_cost","max_estimated_cost_per_1k_tokens_usd":0.02,"max_p95_latency_ms":1200,"candidates":[{"provider":"groq","model":"MODEL_A","estimated_cost_per_1k_tokens_usd":0.005,"expected_p95_latency_ms":700,"timeout_seconds":10,"max_retries":1},{"provider":"openai","model":"MODEL_B","estimated_cost_per_1k_tokens_usd":0.015,"expected_p95_latency_ms":900,"timeout_seconds":20,"max_retries":0}]}}'
 ```
 
-When a request uses `budget-chat` without an explicit provider, the gateway picks the eligible candidate with a configured managed key. The second candidate becomes a fallback. The existing static aliases remain available for aliases not defined in this setting. Provider health probes and circuit breakers are not implemented yet.
+When a request uses `budget-chat` without an explicit provider, the gateway picks the eligible candidate with a configured managed key. The second candidate becomes a fallback. The existing static aliases remain available for aliases not defined in this setting.
 
 ## Request example
 

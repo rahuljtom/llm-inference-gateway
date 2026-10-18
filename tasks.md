@@ -28,7 +28,7 @@ This checklist tracks delivery of the work in [the implementation plan](docs/imp
 - [x] Implement atomic team-month reservations, usage reconciliation, and `429` behavior when a request would exceed its budget.
 - [x] Expose team budget configuration and current-month spend/reservation totals through the admin API.
 - [x] Add configurable route policies with estimated cost/p95 latency limits, candidate timeouts, bounded retries, and ordered 5xx/timeout fallback.
-- [ ] Define provider probe, timeout, retry, circuit-open, and recovery behavior before enabling circuit breakers.
+- [x] Add Redis-backed passive provider circuits with configurable timeout/5xx threshold, cooldown, one half-open recovery request, and documented Redis failure behavior; defer active probes.
 - [ ] Measure exact-match cache correctness and savings; evaluate semantic caching only after those results are available.
 
 ## Validation and delivery
