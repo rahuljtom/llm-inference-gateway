@@ -36,16 +36,19 @@ fi
 
 if [[ "${SKIP_UPSTREAM:-}" != "1" && -z "$UPSTREAM_KEY" ]]; then
   echo "Set GROQ_API_KEY (or UPSTREAM_API_KEY) for live upstream benchmarks."
-  echo "Use SKIP_UPSTREAM=1 to only warm /health (CI smoke)."
+  echo "Use SKIP_UPSTREAM=1 to check gateway readiness without a provider call."
   exit 1
 fi
 
 echo "Warming ${BASE_URL}/health ..."
 curl -sf "${BASE_URL}/health" | head -c 200
 echo ""
+echo "Checking ${BASE_URL}/ready ..."
+curl -sf "${BASE_URL}/ready" | head -c 200
+echo ""
 
 if [[ "${SKIP_UPSTREAM:-}" == "1" ]]; then
-  echo "SKIP_UPSTREAM=1 — health check only."
+  echo "SKIP_UPSTREAM=1 — readiness check only."
   exit 0
 fi
 

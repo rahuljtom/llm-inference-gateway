@@ -9,9 +9,9 @@ services:
     name: llm-inference-gateway
     runtime: python
     plan: free
-    buildCommand: npm install --prefix frontend && npm run build --prefix frontend && pip install -r requirements.txt
+    buildCommand: npm ci --prefix frontend && npm run build --prefix frontend && pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /health
+    healthCheckPath: /ready
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.2"
@@ -37,6 +37,8 @@ services:
       - key: MANAGED_ANTHROPIC_API_KEY
         sync: false
       - key: MANAGED_GROQ_API_KEY
+        sync: false
+      - key: MANAGED_GEMINI_API_KEY
         sync: false
 
   - type: keyvalue

@@ -3,12 +3,14 @@ import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { ChatWorkspace } from './components/ChatWorkspace';
 import { ObservabilityPanel } from './components/ObservabilityPanel';
+import { UsageDashboard } from './components/UsageDashboard';
 
 export default function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeFlow, setActiveFlow] = useState(null);
+  const [view, setView] = useState('playground');
   
   const [config, setConfig] = useState({
     primaryProvider: 'fast-chat',
@@ -21,8 +23,6 @@ export default function App() {
     latencyHistory: Array(10).fill({ time: '', ms: 0 }),
     avgLatency: 0,
     requestCount: 0,
-    dbStatus: 'ok',
-    redisStatus: 'ok'
   });
 
   const messagesEndRef = useRef(null);
@@ -112,7 +112,7 @@ export default function App() {
                 };
                 return newMsgs;
               });
-            } catch (e) {
+            } catch {
               // Ignore partial JSON
             }
           }
@@ -140,20 +140,24 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-full font-sans bg-background text-gray-100 overflow-hidden">
-      <Sidebar config={config} setConfig={setConfig} />
       <div className="flex-1 flex flex-col min-w-0">
-        <Header metrics={metrics} isStreaming={isStreaming} />
-        <div className="flex-1 flex overflow-hidden">
-          <ChatWorkspace 
-            messages={messages} 
-            input={input} 
-            setInput={setInput} 
-            isStreaming={isStreaming} 
-            handleSend={handleSend}
-            messagesEndRef={messagesEndRef}
-          />
-          <ObservabilityPanel metrics={metrics} activeFlow={activeFlow} />
-        </div>
+        <Header metrics={metrics} isStreaming={isStreaming} view={view} setView={setView} />
+        {view === 'usage' ? (
+          <UsageDashboard />
+        ) : (
+          <div className="flex flex-1 overflow-hidden">
+            <Sidebar config={config} setConfig={setConfig} />
+            <ChatWorkspace
+              messages={messages}
+              input={input}
+              setInput={setInput}
+              isStreaming={isStreaming}
+              handleSend={handleSend}
+              messagesEndRef={messagesEndRef}
+            />
+            <ObservabilityPanel metrics={metrics} activeFlow={activeFlow} />
+          </div>
+        )}
       </div>
     </div>
   );

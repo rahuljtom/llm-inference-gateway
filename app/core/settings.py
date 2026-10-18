@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     PROVIDER_TIMEOUT_SECONDS: float = 30.0
+    CIRCUIT_BREAKER_FAILURE_THRESHOLD: int = Field(default=5, ge=1, le=100)
+    CIRCUIT_BREAKER_COOLDOWN_SECONDS: int = Field(default=30, ge=1, le=3600)
+    ROUTING_POLICIES_JSON: Optional[str] = None
     CACHE_ENABLED: bool = True
     CACHE_TTL_SECONDS: int = 3600
     

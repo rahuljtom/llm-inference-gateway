@@ -7,7 +7,7 @@ export function Sidebar({ config, setConfig }) {
       
       <div>
         <h2 className="text-[11px] font-bold tracking-widest text-primary-400 uppercase mb-5 flex items-center gap-2">
-          <Settings size={14} /> Routing Engine
+          <Settings size={14} /> Model Selection
         </h2>
         
         <div className="space-y-5">
@@ -21,8 +21,8 @@ export function Sidebar({ config, setConfig }) {
                 onChange={e => setConfig({...config, routingMode: e.target.value})}
                 className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-xs text-gray-200 outline-none focus:border-primary-500 focus:bg-black transition-all appearance-none cursor-pointer hover:border-white/20"
               >
-                <option value="auto">Auto (Managed)</option>
-                <option value="manual">Manual Override</option>
+                <option value="auto">Static Model Alias</option>
+                <option value="manual">Provider Override</option>
               </select>
               <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-500 group-hover:text-gray-300">
                 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -40,10 +40,10 @@ export function Sidebar({ config, setConfig }) {
                 onChange={e => setConfig({...config, primaryProvider: e.target.value})}
                 className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-xs text-gray-200 outline-none focus:border-primary-500 focus:bg-black transition-all appearance-none cursor-pointer hover:border-white/20"
               >
-                <option value="fast-chat">Groq (Llama 3)</option>
-                <option value="gemini-chat">Gemini (1.5 Flash)</option>
+                <option value="fast-chat">Groq (GPT-OSS 20B)</option>
+                <option value="gemini-chat">Gemini (3.8 Flash)</option>
                 <option value="smart-chat">OpenAI (GPT-4o)</option>
-                <option value="claude-chat">Anthropic (Claude 3.5)</option>
+                <option value="claude-chat">Anthropic (Sonnet 4.6)</option>
               </select>
               <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-500 group-hover:text-gray-300">
                 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -63,9 +63,9 @@ export function Sidebar({ config, setConfig }) {
                   className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-xs text-gray-200 outline-none focus:border-warning/50 focus:bg-black transition-all appearance-none cursor-pointer hover:border-white/20"
                 >
                   <option value="">None</option>
-                  <option value="gemini-chat">Gemini (1.5 Flash)</option>
+                  <option value="gemini-chat">Gemini (3.8 Flash)</option>
                   <option value="smart-chat">OpenAI (GPT-4o)</option>
-                  <option value="fast-chat">Groq (Llama 3)</option>
+                  <option value="fast-chat">Groq (GPT-OSS 20B)</option>
                 </select>
                 <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-500 group-hover:text-gray-300">
                   <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>

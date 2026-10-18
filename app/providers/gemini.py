@@ -8,3 +8,10 @@ GEMINI_CHAT_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/
 class GeminiProvider(OpenAICompatibleProvider):
     def __init__(self, client: httpx.AsyncClient, upstream_api_key: str):
         super().__init__(client, upstream_api_key, GEMINI_CHAT_URL)
+
+    @staticmethod
+    def _payload(request):
+        payload = request.upstream_payload()
+        if request.model.startswith("gemini-3."):
+            payload.pop("temperature", None)
+        return payload

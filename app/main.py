@@ -1,7 +1,12 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-import httpx
+import asyncio
 
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+import httpx
+from sqlalchemy import text
+
+from app.core.redis import redis_client
 from app.db.session import engine, init_db, seed_demo_api_key
 from app.middleware.auth import AuthMiddleware
 from app.middleware.ratelimit import RateLimitMiddleware
@@ -18,6 +23,7 @@ async def lifespan(app: FastAPI):
     yield
     # Clean up gracefully on shutdown
     await app.state.http_client.aclose()
+    await redis_client.aclose()
     await engine.dispose()
 
 app = FastAPI(
@@ -43,7 +49,32 @@ from fastapi.staticfiles import StaticFiles
 
 @app.get("/health")
 async def health():
+    """Liveness probe: the process is answering requests."""
     return {"status": "ok", "gateway": "online"}
+
+
+@app.get("/ready")
+async def ready():
+    """Readiness probe used by the deploy platform before routing traffic."""
+    checks = {"database": "unavailable", "redis": "unavailable"}
+    try:
+        async with engine.connect() as connection:
+            await asyncio.wait_for(connection.execute(text("SELECT 1")), timeout=3)
+        checks["database"] = "ok"
+    except Exception:
+        pass
+
+    try:
+        await asyncio.wait_for(redis_client.ping(), timeout=3)
+        checks["redis"] = "ok"
+    except Exception:
+        pass
+
+    is_ready = all(value == "ok" for value in checks.values())
+    return JSONResponse(
+        status_code=200 if is_ready else 503,
+        content={"status": "ready" if is_ready else "not_ready", "checks": checks},
+    )
 
 static_dir = Path(__file__).parent / "static"
 

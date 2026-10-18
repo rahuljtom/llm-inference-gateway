@@ -7,6 +7,7 @@ from app.db.session import get_api_key_by_hash
 
 EXEMPT_PATHS = frozenset({
     "/health",
+    "/ready",
     "/docs",
     "/openapi.json",
     "/redoc",
