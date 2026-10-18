@@ -179,15 +179,25 @@ async def test_team_budget_update_captures_name_before_commit_expiration(monkeyp
 
         def __init__(self):
             self._name = "analytics"
+            self._budget = None
             self.id = 12
             self.expired = False
-            self.budget_monthly_usd = None
 
         @property
         def name(self):
             if self.expired:
                 raise RuntimeError("team name expired after commit")
             return self._name
+
+        @property
+        def budget_monthly_usd(self):
+            if self.expired:
+                raise RuntimeError("team budget expired after commit")
+            return self._budget
+
+        @budget_monthly_usd.setter
+        def budget_monthly_usd(self, value):
+            self._budget = value
 
     team = ExpiringTeam()
     session = FakeSession(None)
