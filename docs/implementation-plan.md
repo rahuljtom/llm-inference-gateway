@@ -32,8 +32,8 @@ This plan strengthens the existing gateway and adds measurable reliability and u
 
 ## P3 — Extend gateway management capabilities
 
-- [ ] Add team-scoped keys and atomic budget enforcement with explicit over-budget behavior.
-- [ ] Replace static aliases with configurable routing policies using cost, latency, and fallback constraints.
+- [x] Add team-scoped key creation, listing, revocation, and atomic estimated-budget enforcement with explicit over-budget behavior.
+- [x] Replace static aliases as the only option with configurable route policies using cost, latency, and fallback constraints.
 - [ ] Add provider health probes and circuit-breaker behavior only with clear timeout, retry, and recovery rules.
 - [ ] Consider semantic caching after exact-match cache correctness and savings are measured.
 
@@ -41,4 +41,4 @@ This plan strengthens the existing gateway and adds measurable reliability and u
 
 There is no license file yet; choose a license before treating this as a reusable open-source project.
 
-The local Docker app has been rebuilt from this branch. Its admin API remains disabled until `ADMIN_API_KEY` is configured. The public Render service still needs a deployment-log check and a deployment of this branch before its updated readiness behavior can be confirmed.
+The local Docker stack was last checked before the current P2/P3 changes; rebuild and rerun its integration checks before deployment. The admin API remains disabled until `ADMIN_API_KEY` is configured. The public Render service still needs a deployment-log check and a deployment of this branch before its updated readiness behavior can be confirmed.

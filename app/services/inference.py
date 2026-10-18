@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Optional
 
@@ -18,6 +18,11 @@ from app.providers.registry import resolve_provider
 @dataclass
 class FallbackConfig:
     gateway_request: GatewayChatRequest
+    alternatives: list[GatewayChatRequest] = field(default_factory=list)
+
+    @property
+    def candidates(self) -> list[GatewayChatRequest]:
+        return [self.gateway_request, *self.alternatives]
 
 
 async def _reserve_budget(
@@ -28,7 +33,7 @@ async def _reserve_budget(
     api_key = getattr(request.state, "api_key", None)
     if api_key is None:
         return
-    fallback_models = [fallback.gateway_request.model] if fallback else []
+    fallback_models = [candidate.model for candidate in fallback.candidates] if fallback else []
     try:
         reservation_id, reservation_amount = await reserve_team_budget(
             api_key_id=api_key.id,
@@ -85,13 +90,21 @@ def _resolve_fallback(
         body.fallback_api_key.get_secret_value().strip() if body.fallback_api_key else ""
     )
     api_key = (header_key or body_fb_key or "").strip()
+    policy_fallbacks = list(getattr(request.state, "policy_route_fallbacks", []))
     if not provider or not api_key:
-        return None
-    return FallbackConfig(
-        gateway_request=body.to_fallback_gateway(
-            provider=provider,
-            api_key=SecretStr(api_key),
+        if not policy_fallbacks:
+            return None
+        return FallbackConfig(
+            gateway_request=policy_fallbacks[0],
+            alternatives=policy_fallbacks[1:],
         )
+    explicit_fallback = body.to_fallback_gateway(
+        provider=provider,
+        api_key=SecretStr(api_key),
+    )
+    return FallbackConfig(
+        gateway_request=explicit_fallback,
+        alternatives=policy_fallbacks,
     )
 
 
@@ -108,7 +121,7 @@ import asyncio
 async def _complete_with_provider(
     provider: BaseProvider, gateway_request: GatewayChatRequest
 ) -> ChatCompletionResponse:
-    retries = 2
+    retries = gateway_request.max_retries if gateway_request.max_retries is not None else 2
     for attempt in range(retries + 1):
         try:
             return await provider.complete(gateway_request)
@@ -155,27 +168,36 @@ async def execute_completion(
     try:
         response = await _complete_with_provider(provider, gateway_request)
     except Exception as exc:
+        last_error = exc
+        response = None
         if fallback and _should_fallback(exc):
             request.state.fallback_used = True
-            fb_provider = resolve_provider(
-                fallback.gateway_request.provider,
-                request.app.state.http_client,
-                fallback.gateway_request.api_key.get_secret_value(),
-            )
-            effective_request = fallback.gateway_request
-            response = await _complete_with_provider(fb_provider, fallback.gateway_request)
-        elif isinstance(exc, httpx.HTTPStatusError):
+            for fallback_request in fallback.candidates:
+                fb_provider = resolve_provider(
+                    fallback_request.provider,
+                    request.app.state.http_client,
+                    fallback_request.api_key.get_secret_value(),
+                )
+                try:
+                    response = await _complete_with_provider(fb_provider, fallback_request)
+                    effective_request = fallback_request
+                    break
+                except Exception as fallback_error:
+                    last_error = fallback_error
+                    if not _should_fallback(fallback_error):
+                        break
+        if response is None and isinstance(last_error, httpx.HTTPStatusError):
             raise HTTPException(
-                status_code=exc.response.status_code,
+                status_code=last_error.response.status_code,
                 detail="Upstream provider error",
-            ) from exc
-        elif isinstance(exc, httpx.TimeoutException):
+            ) from last_error
+        elif response is None and isinstance(last_error, httpx.TimeoutException):
             raise HTTPException(
                 status_code=504,
                 detail="Upstream provider timed out",
-            ) from exc
-        else:
-            raise
+            ) from last_error
+        elif response is None:
+            raise last_error
 
     _set_completion_usage(request, effective_request, response)
 
@@ -255,17 +277,23 @@ async def execute_stream(
     except Exception as exc:
         if fallback and _should_fallback(exc):
             request.state.fallback_used = True
-            fb_provider = resolve_provider(
-                fallback.gateway_request.provider,
-                request.app.state.http_client,
-                fallback.gateway_request.api_key.get_secret_value(),
-            )
-            try:
-                async for chunk in _stream_from(fb_provider, fallback.gateway_request):
-                    yield chunk
-            except Exception as fb_exc:
-                err_msg = str(fb_exc).replace('"', '\\"')
-                yield f'data: {{"error": "Fallback failed: {err_msg}"}}\n\n'
+            last_error = exc
+            for fallback_request in fallback.candidates:
+                fb_provider = resolve_provider(
+                    fallback_request.provider,
+                    request.app.state.http_client,
+                    fallback_request.api_key.get_secret_value(),
+                )
+                try:
+                    async for chunk in _stream_from(fb_provider, fallback_request):
+                        yield chunk
+                    return
+                except Exception as fb_exc:
+                    last_error = fb_exc
+                    if not _should_fallback(fb_exc):
+                        break
+            err_msg = str(last_error).replace('"', '\\"')
+            yield f'data: {{"error": "Fallback failed: {err_msg}"}}\n\n'
         elif isinstance(exc, httpx.HTTPStatusError):
             try:
                 detail = exc.response.json().get('error', {}).get('message', 'Upstream provider error')

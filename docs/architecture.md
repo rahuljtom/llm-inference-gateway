@@ -4,7 +4,7 @@
 
 1. FastAPI authenticates the gateway bearer key against a SHA-256 hash stored in PostgreSQL.
 2. Redis enforces per-key request and estimated-token limits. Non-streaming responses may use the exact-match cache; `Cache-Control: no-cache` bypasses both cache reads and writes for that request.
-3. The ingress layer resolves an explicit provider or one of the static model aliases.
+3. The ingress layer resolves an explicit provider, static alias, or configured route policy.
 4. A provider adapter normalizes the upstream response to the OpenAI chat-completion schema. Optional fallback credentials and provider selection may be supplied with the request.
 5. Request metadata, token counts, latency, a pricing-table cost estimate, cache status, and fallback status are written to PostgreSQL.
 
@@ -16,7 +16,7 @@ The gateway does not store prompt content in the request log. Provider credentia
 |---|---|---|
 | FastAPI | OpenAI-compatible HTTP endpoint and streaming response | Chat completions only |
 | Provider adapters | Translate requests/responses for OpenAI, Anthropic, Gemini, and Groq | Provider-specific metadata may be lost during normalization |
-| Routing aliases | Map aliases such as `fast-chat` to fixed provider/model pairs | Static mapping, not cost-aware selection |
+| Route policies | Select candidates by configured cost or expected p95 latency limits; use later eligible candidates as fallback | Estimates are operator-supplied; missing managed keys skip a candidate |
 | Redis | Sliding-window RPM/TPM limits and exact response cache | One Redis deployment; no cross-region coordination |
 | PostgreSQL | Team ownership, gateway API key metadata, request usage, and monthly budget reservations | Spend is estimated from the configured model-price table |
 | Admin API | Usage totals, minute buckets, recent request metadata, adapter list | Requires `X-Admin-API-Key`; provider list is not a health probe |
@@ -33,12 +33,10 @@ The request logger estimates cost from provider-reported token counts and a stat
 
 ## Reliability behavior
 
-Fallback can retry or switch provider on selected upstream failures. This improves the chance of returning a response but does not guarantee zero downtime or equivalent output. The project has synthetic failure injection for local experiments. Report failure rates and latency only with the workload, provider, timeout/retry policy, and run artifact attached.
+Configured route policies filter candidates by operator-supplied estimated cost and expected p95 latency. Non-streaming requests retry timeouts and 429 responses within the configured retry limit; eligible later candidates are tried after timeouts and 5xx responses. Streaming requests use the configured timeout and can fail over on timeout/5xx without retries. These controls improve the chance of returning a response but do not guarantee zero downtime or equivalent output. Provider health probes and circuit breakers are not implemented. Report failure rates and latency only with the workload, provider, timeout/retry policy, and run artifact attached.
 
 ## Next architecture steps
 
-1. Add team-scoped keys and a budget ledger with atomic limits.
-2. Add configurable policy routing with explicit cost, latency, and quality constraints.
-3. Version provider price data and retain the price version used for every estimate.
-4. Add provider health probes and circuit breakers with defined recovery behavior.
-5. Evaluate semantic caching only after exact cache behavior and savings are measured.
+1. Version provider price data and retain the price version used for every estimate.
+2. Add provider health probes and circuit breakers with defined recovery behavior.
+3. Evaluate semantic caching only after exact cache behavior and savings are measured.

@@ -69,6 +69,8 @@ class GatewayChatRequest(BaseModel):
     temperature: Optional[float] = Field(default=1.0, ge=0.0, le=2.0)
     max_tokens: Optional[int] = Field(default=None, ge=1)
     stream: Optional[bool] = False
+    route_timeout_seconds: Optional[float] = Field(default=None, ge=0.1, le=120.0)
+    max_retries: Optional[int] = Field(default=None, ge=0, le=2)
 
     @field_validator("provider")
     @classmethod
@@ -77,7 +79,7 @@ class GatewayChatRequest(BaseModel):
 
     def upstream_payload(self) -> Dict[str, Any]:
         return self.model_dump(
-            exclude={"provider", "api_key"},
+            exclude={"provider", "api_key", "route_timeout_seconds", "max_retries"},
             exclude_none=True,
             mode="json",
         )

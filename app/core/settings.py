@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     PROVIDER_TIMEOUT_SECONDS: float = 30.0
+    ROUTING_POLICIES_JSON: Optional[str] = None
     CACHE_ENABLED: bool = True
     CACHE_TTL_SECONDS: int = 3600
     

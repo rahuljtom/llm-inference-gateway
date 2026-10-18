@@ -14,7 +14,7 @@ Built with FastAPI, Redis, PostgreSQL, and React.
 - OpenAI-compatible `POST /v1/chat/completions`
 - Provider adapters for OpenAI, Anthropic, Gemini, and Groq
 - Bring-your-own upstream credentials through `X-Provider` and `X-Provider-Api-Key` headers or request fields
-- Static model aliases such as `fast-chat` and `smart-chat`; aliases map to configured providers and do not select models dynamically by cost
+- Static model aliases such as `fast-chat` and `smart-chat`, plus optional JSON route policies that filter by estimated cost and expected p95 latency
 - Optional fallback provider for eligible upstream failures
 - Redis sliding-window RPM and estimated TPM limits per gateway API key
 - Exact-match response caching for non-streaming requests; clients can bypass cache reads and writes with `Cache-Control: no-cache`
@@ -24,7 +24,7 @@ Built with FastAPI, Redis, PostgreSQL, and React.
 
 ## Product direction
 
-Current work adds team-owned keys and estimated monthly budgets to the existing gateway. The replay tool is ready, but paired provider results still need to be collected. Configurable cost/latency routing and provider circuit behavior remain future work. Semantic caching stays deferred until exact-match results are measured.
+Current work adds team-owned keys, estimated monthly budgets, and configurable cost/latency route policies to the existing gateway. The replay tool is ready, but paired provider results still need to be collected. Provider circuit behavior remains future work. Semantic caching stays deferred until exact-match results are measured.
 
 ## Architecture
 
@@ -33,7 +33,7 @@ graph TD
     Client[Client or SDK] -->|OpenAI-compatible request| Gateway[FastAPI gateway]
     Gateway -->|RPM/TPM and exact cache| Redis[(Redis)]
     Gateway -->|API key and request logs| Postgres[(PostgreSQL)]
-    Gateway --> Router{Static aliases or explicit provider}
+    Gateway --> Router{Route policy, static alias, or explicit provider}
     Router --> OpenAI[OpenAI]
     Router --> Anthropic[Anthropic]
     Router --> Gemini[Gemini]
@@ -55,6 +55,16 @@ uvicorn app.main:app --reload
 The Compose file publishes PostgreSQL at `localhost:5435` and Redis at `localhost:6380`; the app container uses the internal service ports. For running Uvicorn on the host, set `DATABASE_URL=postgresql+asyncpg://gateway:gatewaypass@localhost:5435/gateway` and `REDIS_URL=redis://localhost:6380/0` in `.env`.
 
 The dashboard playground uses the demo gateway key seeded on startup. Each completion still needs a provider and an upstream key, unless a managed provider key is configured by the operator.
+
+## Routing policies
+
+Set `ROUTING_POLICIES_JSON` to define candidate models, the cost or latency selection strategy, eligibility limits, per-candidate timeout, and bounded retries. The `estimated_cost_per_1k_tokens_usd` and `expected_p95_latency_ms` values are operator-supplied estimates and should come from dated price sources and measurements. Candidates without a configured managed provider key are skipped. Eligible candidates after the selected route are used as fallbacks on provider timeouts and 5xx responses. Non-streaming calls apply the configured retry count for timeouts and 429 responses; streaming calls use the candidate timeout and fail over on timeouts/5xx without retries.
+
+```bash
+export ROUTING_POLICIES_JSON='{"budget-chat":{"strategy":"lowest_cost","max_estimated_cost_per_1k_tokens_usd":0.02,"max_p95_latency_ms":1200,"candidates":[{"provider":"groq","model":"MODEL_A","estimated_cost_per_1k_tokens_usd":0.005,"expected_p95_latency_ms":700,"timeout_seconds":10,"max_retries":1},{"provider":"openai","model":"MODEL_B","estimated_cost_per_1k_tokens_usd":0.015,"expected_p95_latency_ms":900,"timeout_seconds":20,"max_retries":0}]}}'
+```
+
+When a request uses `budget-chat` without an explicit provider, the gateway picks the eligible candidate with a configured managed key. The second candidate becomes a fallback. The existing static aliases remain available for aliases not defined in this setting. Provider health probes and circuit breakers are not implemented yet.
 
 ## Request example
 
@@ -125,7 +135,7 @@ Run [`scripts/bench.sh`](scripts/bench.sh) for gateway load checks, or use [`scr
 
 ## Known limitations
 
-- Routing uses static aliases; there is no cost/quality policy engine. Budget decisions use estimated model prices, not provider invoices.
+- Route policies use operator-supplied cost and latency estimates; budget decisions use the static model-price table, not provider invoices.
 - There is no frontend team-usage dashboard; administrators can inspect team budgets and current usage through the admin API.
 - Cost estimates use a static pricing table and can drift from provider pricing.
 - Cache matching is exact, applies to non-streaming responses, and depends on Redis.

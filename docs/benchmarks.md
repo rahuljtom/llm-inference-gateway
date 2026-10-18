@@ -60,14 +60,12 @@ Example (replace model names, provider keys, and price values with the route and
 ```bash
 export GATEWAY_API_KEY=your_gateway_key
 export BASELINE_PROVIDER_API_KEY=your_baseline_provider_key
-export OPTIMIZED_PROVIDER_API_KEY=your_optimized_provider_key
 python scripts/replay_evaluation.py \
   --baseline-url http://localhost:8000 \
   --optimized-url http://localhost:8000 \
   --baseline-provider groq \
   --baseline-model llama-3.3-70b-versatile \
-  --optimized-provider groq \
-  --optimized-model llama-3.1-8b-instant \
+  --optimized-model budget-chat \
   --baseline-input-price 0.00 \
   --baseline-output-price 0.00 \
   --optimized-input-price 0.00 \
@@ -79,4 +77,4 @@ python scripts/replay_evaluation.py \
   --output benchmark-results.json
 ```
 
-The zero prices above are placeholders, not current provider prices or benchmark results. Replace all four prices with the rates applicable to the selected provider/model and date. The price-source values must point to the actual sources used for those rates. Omit `--baseline-provider` or `--optimized-provider` when evaluating an auto-routed alias that resolves its provider from gateway configuration. Raw output contains prompts and generated responses; store it with the same care as other evaluation data.
+The zero prices above are placeholders, not current provider prices or benchmark results. Replace all four prices with the rates applicable to the selected provider/model and date. The price-source values must point to the actual sources used for those rates. `budget-chat` is an example route-policy alias; configure it in `ROUTING_POLICIES_JSON` and set managed provider keys for its candidates before running. The optimized prices should reflect the candidate selected by that policy. Omit `--baseline-provider` or `--optimized-provider` when evaluating an auto-routed alias that resolves its provider from gateway configuration. Raw output contains prompts and generated responses; store it with the same care as other evaluation data.

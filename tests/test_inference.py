@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from app.models.chat import ChatCompletionBody, GatewayChatRequest, ChatMessage
 from app.services.inference import execute_completion, FallbackConfig
+from app.services.inference import _complete_with_provider
 
 
 class DummyState:
@@ -110,3 +111,93 @@ async def test_inference_cache_control_no_cache_bypasses_read_and_write(
     mock_get_cached.assert_not_awaited()
     mock_set_cached.assert_not_awaited()
     await client.aclose()
+
+
+@pytest.mark.anyio
+async def test_fallback_chain_tries_eligible_candidates_in_order(monkeypatch):
+    body = ChatCompletionBody(model="primary", messages=[ChatMessage(role="user", content="hello")])
+    primary = GatewayChatRequest(
+        provider="openai", model="primary", api_key=SecretStr("primary"),
+        messages=body.messages, max_retries=0,
+    )
+    first_fallback = GatewayChatRequest(
+        provider="groq", model="unavailable", api_key=SecretStr("groq"),
+        messages=body.messages, max_retries=0,
+    )
+    second_fallback = GatewayChatRequest(
+        provider="anthropic", model="backup", api_key=SecretStr("anthropic"),
+        messages=body.messages, max_retries=0,
+    )
+
+    class Provider:
+        def __init__(self, outcome):
+            self.outcome = outcome
+
+        async def complete(self, _request):
+            if isinstance(self.outcome, Exception):
+                raise self.outcome
+            return self.outcome
+
+    def failed(status):
+        request = httpx.Request("POST", "https://provider.test")
+        response = httpx.Response(status, request=request)
+        return httpx.HTTPStatusError("upstream", request=request, response=response)
+
+    providers = {
+        "openai": Provider(httpx.TimeoutException("primary timeout")),
+        "groq": Provider(failed(503)),
+        "anthropic": Provider({
+            "id": "backup", "created": 1, "model": "backup",
+            "choices": [{"index": 0, "message": {"role": "assistant", "content": "recovered"}, "finish_reason": "stop"}],
+        }),
+    }
+    from app.models.chat import ChatCompletionResponse
+    providers["anthropic"].outcome = ChatCompletionResponse(**providers["anthropic"].outcome)
+    monkeypatch.setattr("app.services.inference.resolve_provider", lambda provider, *_args: providers[provider])
+    app = type("App", (), {"state": type("AppState", (), {"http_client": None})()})()
+    request = Request({"type": "http", "headers": [], "state": {}, "app": app})
+    request.state.fallback_used = False
+
+    result = await execute_completion(
+        request,
+        body,
+        primary,
+        FallbackConfig(first_fallback, [second_fallback]),
+    )
+
+    assert result.choices[0].message.content == "recovered"
+    assert request.state.fallback_used is True
+    assert request.state.provider == "anthropic"
+    assert request.state.model == "backup"
+
+
+@pytest.mark.anyio
+async def test_route_retry_limit_controls_429_attempts(monkeypatch):
+    import app.services.inference as inference
+
+    class Provider:
+        attempts = 0
+
+        async def complete(self, _request):
+            self.attempts += 1
+            request = httpx.Request("POST", "https://provider.test")
+            response = httpx.Response(429, request=request)
+            raise httpx.HTTPStatusError("rate limited", request=request, response=response)
+
+    provider = Provider()
+    sleeps = []
+
+    async def no_wait(delay):
+        sleeps.append(delay)
+
+    monkeypatch.setattr(inference.asyncio, "sleep", no_wait)
+    gateway_request = GatewayChatRequest(
+        provider="openai", model="limited", api_key=SecretStr("key"),
+        messages=[ChatMessage(role="user", content="hello")], max_retries=1,
+    )
+
+    with pytest.raises(httpx.HTTPStatusError):
+        await _complete_with_provider(provider, gateway_request)
+
+    assert provider.attempts == 2
+    assert sleeps == [1]
