@@ -26,7 +26,7 @@ This plan strengthens the existing gateway and adds measurable reliability and u
 
 ## P2 — Measure routing and caching outcomes
 
-- [ ] Complete a representative run through a fixed, licensed prompt corpus with provider throttling controlled. An initial 50-prompt run completed, but upstream 429s and gateway 500s affected 15 of 200 requests, so it is diagnostic only.
+- [ ] Complete a representative run through a fixed, licensed prompt corpus with provider throttling controlled and a cold cache. Initial runs were invalidated by upstream 429s, gateway logging failures, and cache carryover; the logger and savings calculations are now corrected. Rerun with a replacement provider key.
 - [ ] Publish the corpus/version, model prices/date, command, aggregate results, latency percentiles, failure rate, and a quality measure only after successful, comparable response samples are available. Keep raw prompts and responses local unless separately reviewed for publication.
 - [ ] Separate measured savings from estimated savings.
 
