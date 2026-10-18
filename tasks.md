@@ -20,7 +20,7 @@ This checklist tracks delivery of the work in [the implementation plan](docs/imp
 - [x] Define reproducible baseline and optimized runs with explicit route names, cache modes, price inputs/sources, and pricing effective date.
 - [x] Build a replay runner that saves raw responses, request outcomes, token usage, estimated cost, cache hits, and latency data without exposing credentials.
 - [x] Report latency percentiles, failure rate, cache-hit ratio, and ROUGE-L F1 as a clearly limited quality proxy.
-- [ ] Run the paired evaluation with provider credentials and actual price inputs; publish the resulting data and interpretation.
+- [ ] Complete and publish a representative paired evaluation. An initial 50-prompt run completed, but upstream 429s, gateway 500s, and an uneven quality-comparison sample make its estimated savings unsuitable for a result claim. Keep the raw run outside the repository; rerun after controlling request rates and resolving the gateway/database errors.
 
 ## P3 — Gateway management capabilities
 
