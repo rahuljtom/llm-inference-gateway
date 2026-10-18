@@ -15,7 +15,7 @@ This plan strengthens the existing gateway and adds measurable reliability and u
 ## P1 — Restore a repeatable release path
 
 - [x] Add GitHub Actions for the existing Python tests and frontend production build.
-- [x] Build and run the app locally with Postgres and Redis; `/health` and `/ready` return 200, and the admin API fails closed with 503 when its key is unset.
+- [x] Build and run the current branch with Postgres and Redis in an isolated local Compose stack; `/health` and `/ready` return 200, and the admin API fails closed with 503 when its key is unset.
 - [ ] Check the Render deployment logs and health after the updated branch is available there. The public endpoint did not return an app response during review; deployment logs are not available from this checkout.
 
 ## Completed follow-up
@@ -41,4 +41,4 @@ This plan strengthens the existing gateway and adds measurable reliability and u
 
 There is no license file yet; choose a license before treating this as a reusable open-source project.
 
-The local Docker stack was last checked before the current P2/P3 changes; rebuild and rerun its integration checks before deployment. The admin API remains disabled until `ADMIN_API_KEY` is configured. The public Render service still needs a deployment-log check and a deployment of this branch before its updated readiness behavior can be confirmed.
+The current branch was rebuilt and checked in an isolated local Compose stack on ports 8001 (app), 5436 (PostgreSQL), and 6381 (Redis), since the existing project stack already occupies its default ports. The app returned healthy liveness/readiness responses and the admin API returned 503 without `ADMIN_API_KEY`. The public Render service still needs a deployment-log check and deployment of this branch before its updated readiness behavior can be confirmed.

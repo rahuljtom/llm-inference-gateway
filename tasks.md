@@ -11,7 +11,7 @@ This checklist tracks delivery of the work in [the implementation plan](docs/imp
 ## P1 — Repeatable release path
 
 - [x] Add CI for Python checks and frontend production builds.
-- [x] Build and run the local Docker stack with PostgreSQL and Redis; verify liveness, readiness, and fail-closed admin behavior.
+- [x] Build and run the current branch in an isolated local Docker stack with PostgreSQL and Redis; verify liveness, readiness, and fail-closed admin behavior.
 - [ ] Verify the deployed service and Render deployment logs when deployment access is available.
 
 ## P2 — Routing and caching measurements
@@ -33,6 +33,6 @@ This checklist tracks delivery of the work in [the implementation plan](docs/imp
 
 ## Validation and delivery
 
-- [ ] Run focused tests and checks for each implementation chunk; run the full relevant suite before completion.
-- [ ] Review each change for correctness, secrets, attribution, documentation accuracy, and unrelated files before committing.
-- [ ] Push reviewed commits to the feature branch in small, independent units.
+- [x] Run focused tests and checks for each implementation chunk; run the full relevant suite before completion.
+- [x] Review each change for correctness, secrets, attribution, documentation accuracy, and unrelated files before committing.
+- [x] Push reviewed commits to the feature branch in small, independent units.
