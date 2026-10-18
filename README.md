@@ -24,7 +24,7 @@ Built with FastAPI, Redis, PostgreSQL, and React.
 
 ## Product direction
 
-The next step is a cost and reliability control plane. Team-scoped keys, enforceable budgets, cost-aware routing policies, and a replay-based savings report are planned work; they are not implemented yet. Semantic caching is also out of scope until exact-match results are measured.
+Planned improvements build on the existing gateway with team-scoped keys, enforceable budgets, cost-aware routing policies, and a replay-based savings report. These capabilities are not implemented yet. Semantic caching is also out of scope until exact-match results are measured.
 
 ## Architecture
 

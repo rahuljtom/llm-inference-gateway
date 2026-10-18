@@ -1,6 +1,6 @@
 # LLM Gateway: implementation plan
 
-This plan puts the current repository in a trustworthy state before expanding it into a cost-control product.
+This plan strengthens the existing gateway and adds measurable reliability and usage controls in stages.
 
 ## P0 — Make current behavior safe and accurate
 
@@ -24,13 +24,13 @@ This plan puts the current repository in a trustworthy state before expanding it
 - [x] Build the frontend production assets and check in the generated assets served by the app.
 - [x] Move the live-provider smoke check out of pytest discovery so CI only runs deterministic tests.
 
-## P2 — Demonstrate the cost claim
+## P2 — Measure routing and caching outcomes
 
 - [ ] Run a fixed, licensed prompt corpus through a documented baseline and optimized policy.
 - [ ] Publish the corpus/version, model prices/date, command, raw results, latency percentiles, failure rate, and a quality measure.
 - [ ] Separate measured savings from estimated savings.
 
-## P3 — Add control-plane capabilities
+## P3 — Extend gateway management capabilities
 
 - [ ] Add team-scoped keys and atomic budget enforcement with explicit over-budget behavior.
 - [ ] Replace static aliases with configurable routing policies using cost, latency, and fallback constraints.
