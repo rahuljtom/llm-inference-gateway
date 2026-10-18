@@ -21,8 +21,6 @@ export default function App() {
     latencyHistory: Array(10).fill({ time: '', ms: 0 }),
     avgLatency: 0,
     requestCount: 0,
-    dbStatus: 'ok',
-    redisStatus: 'ok'
   });
 
   const messagesEndRef = useRef(null);
