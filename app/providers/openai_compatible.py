@@ -30,8 +30,12 @@ class OpenAICompatibleProvider(BaseProvider):
     def _timeout(request: GatewayChatRequest) -> httpx.Timeout:
         return httpx.Timeout(request.route_timeout_seconds or settings.PROVIDER_TIMEOUT_SECONDS)
 
+    @staticmethod
+    def _payload(request: GatewayChatRequest) -> dict:
+        return request.upstream_payload()
+
     async def complete(self, request: GatewayChatRequest) -> ChatCompletionResponse:
-        payload = request.upstream_payload()
+        payload = self._payload(request)
         response = await self.client.post(
             self.api_url,
             headers=self._headers(),
@@ -42,7 +46,7 @@ class OpenAICompatibleProvider(BaseProvider):
         return ChatCompletionResponse(**response.json())
 
     async def stream(self, request: GatewayChatRequest) -> AsyncGenerator[str, None]:
-        payload = request.upstream_payload()
+        payload = self._payload(request)
         payload["stream"] = True
         payload["stream_options"] = {"include_usage": True}
 

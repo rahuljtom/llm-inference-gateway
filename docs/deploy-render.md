@@ -72,7 +72,7 @@ curl -s -X POST "${BASE_URL}/v1/chat/completions" \
   -H "X-Provider: groq" \
   -H "X-Provider-Api-Key: gsk_YOUR_GROQ_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"llama-3.1-8b-instant","messages":[{"role":"user","content":"hi"}],"max_tokens":16}'
+  -d '{"model":"openai/gpt-oss-20b","messages":[{"role":"user","content":"hi"}],"max_tokens":16}'
 ```
 
 Admin API requests require the configured `ADMIN_API_KEY` header. The React playground shows client-session activity; it does not claim live provider health or persisted admin metrics.

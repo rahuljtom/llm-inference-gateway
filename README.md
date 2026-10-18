@@ -78,7 +78,7 @@ curl -X POST http://localhost:8000/v1/chat/completions \
   -H "X-Provider: groq" \
   -H "X-Provider-Api-Key: gsk_YOUR_GROQ_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"llama-3.1-8b-instant","messages":[{"role":"user","content":"Hello"}]}'
+  -d '{"model":"openai/gpt-oss-20b","messages":[{"role":"user","content":"Hello"}]}'
 ```
 
 ## Admin API

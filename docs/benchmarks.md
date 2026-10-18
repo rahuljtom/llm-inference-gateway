@@ -64,17 +64,17 @@ python scripts/replay_evaluation.py \
   --baseline-url http://localhost:8000 \
   --optimized-url http://localhost:8000 \
   --baseline-provider groq \
-  --baseline-model llama-3.3-70b-versatile \
+  --baseline-model openai/gpt-oss-120b \
   --optimized-model budget-chat \
-  --baseline-input-price 0.00 \
-  --baseline-output-price 0.00 \
-  --optimized-input-price 0.00 \
-  --optimized-output-price 0.00 \
+  --baseline-input-price 0.15 \
+  --baseline-output-price 0.60 \
+  --optimized-input-price 0.075 \
+  --optimized-output-price 0.30 \
   --pricing-date 2026-10-18 \
-  --baseline-price-source https://console.groq.com/docs/models \
-  --optimized-price-source https://console.groq.com/docs/models \
+  --baseline-price-source https://console.groq.com/docs/model/openai/gpt-oss-120b \
+  --optimized-price-source https://console.groq.com/docs/model/openai/gpt-oss-20b \
   --limit 50 \
   --output benchmark-results.json
 ```
 
-The zero prices above are placeholders, not current provider prices or benchmark results. Replace all four prices with the rates applicable to the selected provider/model and date. The price-source values must point to the actual sources used for those rates. `budget-chat` is an example route-policy alias; configure it in `ROUTING_POLICIES_JSON` and set managed provider keys for its candidates before running. The optimized prices should reflect the candidate selected by that policy. Omit `--baseline-provider` or `--optimized-provider` when evaluating an auto-routed alias that resolves its provider from gateway configuration. Raw output contains prompts and generated responses; store it with the same care as other evaluation data.
+The example rates match Groq's published GPT-OSS 120B and 20B standard token prices as of 2026-10-18; verify them against the linked provider pages before a run. They are example inputs, not benchmark results. `budget-chat` is an example route-policy alias; configure it in `ROUTING_POLICIES_JSON` and set managed provider keys for its candidates before running. The optimized prices should reflect the candidate selected by that policy. Omit `--baseline-provider` or `--optimized-provider` when evaluating an auto-routed alias that resolves its provider from gateway configuration. Raw output contains prompts and generated responses; store it with the same care as other evaluation data.

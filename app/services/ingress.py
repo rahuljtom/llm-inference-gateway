@@ -100,12 +100,7 @@ def build_gateway_request(
 ) -> GatewayChatRequest:
     provider, resolved_model, api_key = resolve_credentials(request, body)
     
-    # The gateway request needs the potentially resolved model (e.g. fast-chat -> llama-3.1-8b-instant)
-    # So we'll override the model when creating the GatewayChatRequest
-    
-    # We can pass model=resolved_model to to_gateway
-    # but currently to_gateway only takes provider and api_key.
-    # Let's modify what it takes, or just override it post-creation.
+    # The gateway request needs the resolved model (e.g. fast-chat -> openai/gpt-oss-20b).
     req = body.to_gateway(provider=provider, api_key=SecretStr(api_key))
     req.model = resolved_model
     req.route_timeout_seconds = getattr(request.state, "route_timeout_seconds", None)

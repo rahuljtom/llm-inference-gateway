@@ -7,6 +7,7 @@ from starlette.requests import Request
 
 from app.models.chat import ChatCompletionBody, ChatMessage
 from app.services.ingress import build_gateway_request, resolve_credentials
+from app.services.routing import ROUTING_ALIASES
 
 
 def _request(headers: Optional[Dict[str, str]] = None) -> Request:
@@ -28,6 +29,12 @@ def _body(**kwargs) -> ChatCompletionBody:
     }
     defaults.update(kwargs)
     return ChatCompletionBody(**defaults)
+
+
+def test_builtin_aliases_target_current_provider_models():
+    assert ROUTING_ALIASES["fast-chat"] == ("groq", "openai/gpt-oss-20b")
+    assert ROUTING_ALIASES["claude-chat"] == ("anthropic", "claude-sonnet-4-6")
+    assert ROUTING_ALIASES["gemini-chat"] == ("gemini", "gemini-3.8-flash")
 
 
 def test_resolve_from_body_only():

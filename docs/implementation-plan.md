@@ -36,6 +36,7 @@ This plan strengthens the existing gateway and adds measurable reliability and u
 - [x] Replace static aliases as the only option with configurable route policies using cost, latency, and fallback constraints.
 - [x] Add a Redis-backed passive provider circuit with timeout/5xx thresholds, cooldown, single half-open recovery request, and fail-open Redis behavior. Active health probes remain deferred.
 - [x] Add a team usage dashboard backed by the authenticated admin API, with spend, reservations, active key count, and monthly budget controls.
+- [x] Update built-in model aliases, examples, and static price estimates for current provider model availability.
 - [ ] Consider semantic caching after exact-match cache correctness and savings are measured.
 
 ## Current limits

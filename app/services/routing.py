@@ -8,10 +8,10 @@ from typing import Optional
 from app.core.settings import settings
 
 ROUTING_ALIASES = {
-    "fast-chat": ("groq", "llama-3.1-8b-instant"),
+    "fast-chat": ("groq", "openai/gpt-oss-20b"),
     "smart-chat": ("openai", "gpt-4o"),
-    "claude-chat": ("anthropic", "claude-3-5-sonnet-20241022"),
-    "gemini-chat": ("gemini", "gemini-1.5-flash"),
+    "claude-chat": ("anthropic", "claude-sonnet-4-6"),
+    "gemini-chat": ("gemini", "gemini-3.8-flash"),
 }
 SUPPORTED_PROVIDERS = frozenset({"openai", "groq", "anthropic", "gemini"})
 
