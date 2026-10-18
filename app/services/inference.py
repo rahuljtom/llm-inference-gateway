@@ -70,8 +70,9 @@ async def execute_completion(
     fallback: Optional[FallbackConfig],
 ) -> ChatCompletionResponse:
     api_key = getattr(request.state, "api_key", None)
+    cache_bypassed = "no-cache" in request.headers.get("cache-control", "").lower()
     cache_key = None
-    if api_key and not gateway_request.stream:
+    if api_key and not gateway_request.stream and not cache_bypassed:
         cache_key = build_cache_key(
             api_key.id,
             gateway_request.provider,
@@ -121,7 +122,7 @@ async def execute_completion(
         usage=usage_from_response(response),
     )
 
-    if cache_key:
+    if cache_key and not cache_bypassed:
         await set_cached_response(cache_key, response.model_dump(mode="json"))
 
     return response

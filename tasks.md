@@ -16,11 +16,11 @@ This checklist tracks delivery of the work in [the implementation plan](docs/imp
 
 ## P2 — Routing and caching measurements
 
-- [ ] Select a public prompt corpus with a compatible license; record its source, version, and license.
-- [ ] Define reproducible baseline and optimized gateway policies, model identifiers, pricing inputs, and the pricing effective date.
-- [ ] Build a repeatable runner that saves raw responses, request outcomes, token usage, cost, and latency data without exposing credentials.
-- [ ] Compare baseline and optimized runs using latency percentiles, failure rate, and a documented quality measure.
-- [ ] Publish commands and results; label measured and estimated savings separately and document limitations.
+- [x] Select a public prompt corpus with a compatible license; record its source, pinned revision, and license.
+- [x] Define reproducible baseline and optimized runs with explicit route names, cache modes, price inputs/sources, and pricing effective date.
+- [x] Build a replay runner that saves raw responses, request outcomes, token usage, estimated cost, cache hits, and latency data without exposing credentials.
+- [x] Report latency percentiles, failure rate, cache-hit ratio, and ROUGE-L F1 as a clearly limited quality proxy.
+- [ ] Run the paired evaluation with provider credentials and actual price inputs; publish the resulting data and interpretation.
 
 ## P3 — Gateway management capabilities
 

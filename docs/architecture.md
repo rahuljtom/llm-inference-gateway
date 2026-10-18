@@ -3,7 +3,7 @@
 ## Request path
 
 1. FastAPI authenticates the gateway bearer key against a SHA-256 hash stored in PostgreSQL.
-2. Redis enforces per-key request and estimated-token limits. Non-streaming responses may use the exact-match cache.
+2. Redis enforces per-key request and estimated-token limits. Non-streaming responses may use the exact-match cache; `Cache-Control: no-cache` bypasses both cache reads and writes for that request.
 3. The ingress layer resolves an explicit provider or one of the static model aliases.
 4. A provider adapter normalizes the upstream response to the OpenAI chat-completion schema. Optional fallback credentials and provider selection may be supplied with the request.
 5. Request metadata, token counts, latency, a pricing-table cost estimate, cache status, and fallback status are written to PostgreSQL.

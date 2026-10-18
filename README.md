@@ -17,7 +17,7 @@ Built with FastAPI, Redis, PostgreSQL, and React.
 - Static model aliases such as `fast-chat` and `smart-chat`; aliases map to configured providers and do not select models dynamically by cost
 - Optional fallback provider for eligible upstream failures
 - Redis sliding-window RPM and estimated TPM limits per gateway API key
-- Exact-match response caching for non-streaming requests
+- Exact-match response caching for non-streaming requests; clients can bypass cache reads and writes with `Cache-Control: no-cache`
 - PostgreSQL request logs with model, provider, latency, token, cost-estimate, cache, and fallback fields
 - Authenticated admin API with usage aggregates from the request log table
 - Liveness endpoint at `/health` and dependency readiness endpoint at `/ready`
@@ -91,7 +91,7 @@ curl http://localhost:8000/admin/api/stats \
 
 ## Benchmarks
 
-Run [`scripts/bench.sh`](scripts/bench.sh) as described in [docs/benchmarks.md](docs/benchmarks.md). Historical example output is illustrative and is not a current production measurement or proof of cost savings. Re-run with a documented environment before quoting numbers.
+Run [`scripts/bench.sh`](scripts/bench.sh) for gateway load checks, or use [`scripts/replay_evaluation.py`](scripts/replay_evaluation.py) for a pinned prompt/reference replay with baseline and optimized cache policies. See [docs/benchmarks.md](docs/benchmarks.md) for inputs and limitations. No current replay result is published; run with documented price sources before quoting savings.
 
 ## Known limitations
 
